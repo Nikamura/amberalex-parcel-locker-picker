@@ -150,7 +150,7 @@
   }
 
   // Round map badge: white disc, carrier-coloured ring, carrier logo inside.
-  var BADGE = 30; // CSS px
+  var BADGE = 36; // CSS px
   function badge(key, img) {
     var r = 2, size = BADGE * r, c = document.createElement('canvas');
     c.width = c.height = size;
@@ -166,7 +166,7 @@
     g.strokeStyle = COLORS[key] || '#111';
     g.stroke();
     if (img) {
-      var s = 16 * r;
+      var s = 22 * r;
       g.drawImage(img, (size - s) / 2, (size - s) / 2, s, s);
     } else {
       g.beginPath();
@@ -292,12 +292,12 @@
       });
       map.on('styleimagemissing', function (e) { if (e.id.indexOf('plp-') === 0) addBadge(e.id); });
       map.addSource('plp-sel', { type: 'geojson', data: EMPTY });
-      map.addLayer({ id: 'plp-sel', type: 'circle', source: 'plp-sel', paint: { 'circle-radius': 20, 'circle-color': ['get', 'c'], 'circle-opacity': 0.35, 'circle-stroke-width': 2, 'circle-stroke-color': ['get', 'c'] } });
+      map.addLayer({ id: 'plp-sel', type: 'circle', source: 'plp-sel', paint: { 'circle-radius': 24, 'circle-color': ['get', 'c'], 'circle-opacity': 0.35, 'circle-stroke-width': 2, 'circle-stroke-color': ['get', 'c'] } });
       map.addLayer({
         id: 'plp-points', type: 'symbol', source: 'plp', filter: ['!', ['has', 'point_count']],
         layout: {
           'icon-image': ['concat', 'plp-', ['get', 'k']],
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.75, 15, 1],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.7, 14, 1],
           'icon-allow-overlap': true,
         },
       });
