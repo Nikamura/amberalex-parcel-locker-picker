@@ -178,9 +178,7 @@ export default function Index() {
                         ) : null}
                         <s-stack direction="block">
                           <s-text type="strong">{n.short}</s-text>
-                          <s-text color="subdued">
-                            {n.lockers.toLocaleString("en")} lockers · {n.network}
-                          </s-text>
+                          <s-text color="subdued">{n.lockers.toLocaleString("en")} lockers</s-text>
                         </s-stack>
                       </s-stack>
                     </s-table-cell>
