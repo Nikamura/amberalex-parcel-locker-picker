@@ -6,7 +6,7 @@ Shopify app that lets buyers choose a parcel locker (paštomatas) at checkout, b
 - **Orders:** on `orders/create`, if the shipping line is a locker rate, the app writes the locker to an app metafield (`$app.parcel_locker`) and to order attributes (`Parcel locker`, `Parcel locker ID`). Optionally it replaces the shipping address with the locker address, for shipping tools that only read the address (e.g. Alsendo's Shopify importer).
 - **Locker catalogue:** synced daily from Alsendo's public list (`https://www.alsendo.lt/api/v1/parcel_machines`, ~5,000 lockers in LT/LV/EE). Locker IDs are Alsendo terminal IDs, so a later version can create Alsendo shipments with `shipping_type: "terminal"`.
 
-The buyer's position is estimated from the postcode (centroid of lockers with the longest matching postcode prefix, falling back to the city name). No external geocoder.
+The buyer's position is estimated from the postcode (centroid of lockers with the longest matching postcode prefix). No external geocoder.
 
 ## Develop
 
@@ -17,21 +17,24 @@ pnpm shopify app config link   # fill client_id
 pnpm dev
 ```
 
-Stack: React Router Shopify template, Drizzle + SQLite (`DATABASE_PATH`), Polaris web components.
+Stack: React Router Shopify template on Cloudflare Workers, Drizzle + D1, Polaris web components.
+
+Local Worker: `pnpm exec wrangler d1 migrations apply parcel-locker-picker --local`, `pnpm sync:lockers --local`, put `SHOPIFY_API_SECRET=…` in `.dev.vars`, then `pnpm build && pnpm preview`.
 
 ## Deploy
 
-```sh
-cp .env.example .env   # fill in
-docker compose up -d --build
-```
+Runs on Cloudflare Workers + D1 (free plan) at `SHOPIFY_APP_URL`; config in `wrangler.jsonc`.
 
-Expose port 3000 over HTTPS (Caddy, Cloudflare Tunnel…) at `SHOPIFY_APP_URL`, then `pnpm shopify app deploy` to push the app config and webhooks. If the app is down, checkout just shows the store's other shipping rates.
+- **Deploys:** pushing to `main` runs `.github/workflows/deploy.yml` (checks, D1 migrations, `wrangler deploy`). Needs the `production` environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+- **Locker catalogue:** `.github/workflows/sync-lockers.yml` runs `pnpm sync:lockers` daily (03:17 UTC). Parsing the 5,000-locker list doesn't fit the Workers free-plan CPU limit, so it runs in Actions and writes SQL to D1.
+- **Secret:** `pnpm exec wrangler secret put SHOPIFY_API_SECRET` once.
+- **App config:** `pnpm shopify app deploy` pushes the app config, webhooks and extensions.
+
+If the app is down, checkout just shows the store's other shipping rates.
 
 `orders/create` requires protected customer data access to be approved for the app in the Dev Dashboard.
 
 ## Roadmap
 
 1. Create Alsendo shipments for locker orders (`POST /api/v1/orders` with the terminal ID; needs an Alsendo API token, and buys the label on create).
-2. Admin order block showing the locker; thank-you page block to change it.
-3. Map picker on the cart page for stores without carrier-calculated shipping.
+2. Admin order block showing the locker.
