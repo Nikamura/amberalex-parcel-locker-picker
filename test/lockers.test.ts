@@ -137,13 +137,14 @@ describe("searchText", () => {
 });
 
 describe("Alsendo parser", () => {
-  it("maps machines and drops deleted or unplaced ones", () => {
+  it("maps machines and drops deleted, unplaced or stale-list ones", () => {
     const parsed = parseAlsendo({
       result: {
         parcel_machines: [
           { id: 7, name: " A ", city: "Vilnius", country_code: "LT", address: "G. 1", zip: "01100", x_cord: "54.6", y_cord: "25.2", comment: "", deleted_at: null, identifier: "omniva", updated_at: "" },
           { id: 8, name: "B", city: "", country_code: "LT", address: null, zip: null, x_cord: null, y_cord: null, comment: null, deleted_at: null, identifier: "dpd", updated_at: "" },
           { id: 9, name: "C", city: "", country_code: "LT", address: null, zip: null, x_cord: "1", y_cord: "2", comment: null, deleted_at: "2026-01-01", identifier: "dpd", updated_at: "" },
+          { id: 10, name: "D", city: "", country_code: "LT", address: null, zip: null, x_cord: "1", y_cord: "2", comment: null, deleted_at: null, identifier: "LpPost", updated_at: "" },
         ],
       },
     });

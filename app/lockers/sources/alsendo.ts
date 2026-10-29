@@ -20,12 +20,16 @@ interface AlsendoMachine {
   updated_at: string;
 }
 
+// "LpPost" is a stale copy of the LP Express list (last updated August 2025);
+// 322 of its 332 lockers duplicate the maintained "lp_post" list.
+const STALE_NETWORKS = new Set(["LpPost"]);
+
 export function parseAlsendo(body: unknown): Locker[] {
   const machines = (body as { result?: { parcel_machines?: AlsendoMachine[] } })?.result
     ?.parcel_machines;
   if (!Array.isArray(machines)) throw new Error("Unexpected Alsendo response shape");
   const lockers = machines
-    .filter((m) => !m.deleted_at && m.x_cord && m.y_cord)
+    .filter((m) => !m.deleted_at && m.x_cord && m.y_cord && !STALE_NETWORKS.has(m.identifier))
     .map((m) => ({
       source: "alsendo",
       externalId: String(m.id),
