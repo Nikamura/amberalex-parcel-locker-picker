@@ -1,0 +1,30 @@
+# Link to your app with `pnpm shopify app config link`, which fills in client_id and name.
+client_id = ""
+name = "Parcel locker picker"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# write_shipping: register the carrier service (checkout locker rates)
+# read_orders/write_orders: save the chosen locker on new orders
+scopes = "write_shipping,read_orders,write_orders"
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  # Needs protected customer data access approved for the app.
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/webhooks/orders/create"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]

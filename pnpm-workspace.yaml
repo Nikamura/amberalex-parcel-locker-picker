@@ -1,0 +1,7 @@
+packages:
+  - "extensions/*"
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+overrides:
+  qs: ^6.16.0
