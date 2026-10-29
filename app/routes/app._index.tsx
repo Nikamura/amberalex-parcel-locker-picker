@@ -178,7 +178,9 @@ export default function Index() {
                         ) : null}
                         <s-stack direction="block">
                           <s-text type="strong">{n.short}</s-text>
-                          <s-text color="subdued">{n.lockers.toLocaleString("en")} lockers</s-text>
+                          <s-text color="subdued">
+                            {n.lockers.toLocaleString("en")} lockers · {n.network}
+                          </s-text>
                         </s-stack>
                       </s-stack>
                     </s-table-cell>
@@ -248,6 +250,13 @@ export default function Index() {
           </s-stack>
         </s-section>
 
+        <s-stack direction="inline" justifyContent="end">
+          <s-button type="submit" variant="primary" {...(saving ? { loading: true } : {})}>
+            Save
+          </s-button>
+        </s-stack>
+      </Form>
+
         <s-section slot="aside" heading="Setup">
           <s-stack direction="block" gap="base">
             <SetupStep done={Boolean(carrierServiceId)} title="Checkout rates">
@@ -295,13 +304,6 @@ export default function Index() {
             </s-text>
           </s-stack>
         </s-section>
-
-        <s-stack direction="inline" justifyContent="end">
-          <s-button type="submit" variant="primary" {...(saving ? { loading: true } : {})}>
-            Save
-          </s-button>
-        </s-stack>
-      </Form>
     </s-page>
   );
 }
