@@ -7,7 +7,6 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "workers_dev": true,
-  "routes": [{ "pattern": "lockers.cn.lt", "custom_domain": true }],
   "vars": {
     "SHOPIFY_APP_URL": "https://parcel-locker-picker.karolis.workers.dev",
     "SHOPIFY_API_KEY": "e94c913beb6f1e4efd371daf77090f13",

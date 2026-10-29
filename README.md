@@ -23,7 +23,7 @@ Local Worker: `pnpm exec wrangler d1 migrations apply parcel-locker-picker --loc
 
 ## Deploy
 
-Runs on Cloudflare Workers + D1 (free plan) at `SHOPIFY_APP_URL`; config in `wrangler.jsonc`.
+Runs on Cloudflare Workers + D1 (free plan) at `https://parcel-locker-picker.karolis.workers.dev` (`SHOPIFY_APP_URL`); config in `wrangler.jsonc`. The URL is also set in `shopify.app.toml`, the thank-you extension (`APP_URL`) and the cart embed block. Changing it means `shopify app deploy` plus updating each shop's carrier service callback (saving the app settings page does that).
 
 - **Deploys:** pushing to `main` runs `.github/workflows/deploy.yml` (checks, D1 migrations, `wrangler deploy`). Needs the `production` environment secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 - **Locker catalogue:** `.github/workflows/sync-lockers.yml` runs `pnpm sync:lockers` daily (03:17 UTC). Parsing the 5,000-locker list doesn't fit the Workers free-plan CPU limit, so it runs in Actions and writes SQL to D1.
