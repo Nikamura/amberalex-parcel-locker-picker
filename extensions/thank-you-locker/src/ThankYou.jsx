@@ -56,15 +56,7 @@ const PREVIEW = {
   editable: true,
   country: 'LT',
   zip: '44146',
-  current: {
-    id: 'preview',
-    network: 'lp_post',
-    name: 'IKI',
-    address: 'Savanorių pr. 111',
-    city: 'Kaunas',
-    carrierLogo: 'lp_post',
-    brand: 'iki',
-  },
+  current: null,
   networks: [
     {network: 'lp_post', short: 'LP Express', carrierLogo: 'lp_post'},
     {network: 'omniva', short: 'Omniva', carrierLogo: 'omniva'},
@@ -82,7 +74,7 @@ function Extension() {
 
   const [info, setInfo] = useState(inEditor ? PREVIEW : null);
   const [loadState, setLoadState] = useState(inEditor ? 'done' : 'loading');
-  const [network, setNetwork] = useState(inEditor ? PREVIEW.current.network : '');
+  const [network, setNetwork] = useState(inEditor ? PREVIEW.networks[0].network : '');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [savingId, setSavingId] = useState('');
@@ -162,25 +154,40 @@ function Extension() {
     <s-text>{t('chooseIntro')}</s-text>
   );
 
+  // Locker delivery paid but no locker yet (e.g. draft-order checkout links):
+  // make the call to action hard to miss.
+  const needsChoice = !info.current && info.editable;
+
   return (
-    <s-box padding="base" border="base" borderRadius="base">
-      <s-stack gap="base">
-        <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
-          <s-heading>{info.current ? t('heading') : t('chooseHeading')}</s-heading>
-          {info.editable && (
-            <s-button
-              variant={info.current ? 'secondary' : 'primary'}
-              commandFor={MODAL_ID}
-              command="--show"
-            >
-              {info.current ? t('change') : t('choose')}
-            </s-button>
-          )}
-        </s-stack>
-        {status === 'saved' && <s-banner tone="success">{t('saved')}</s-banner>}
-        {summary}
-        {!info.editable && !info.current && <s-text color="subdued">{t('locked')}</s-text>}
-      </s-stack>
+    <s-stack gap="base">
+      {needsChoice ? (
+        <s-banner tone="warning" heading={t('chooseHeading')}>
+          <s-stack gap="base">
+            <s-text>{t('chooseIntro')}</s-text>
+            <s-stack direction="inline">
+              <s-button variant="primary" commandFor={MODAL_ID} command="--show">
+                {t('choose')}
+              </s-button>
+            </s-stack>
+          </s-stack>
+        </s-banner>
+      ) : (
+        <s-box padding="base" border="base" borderRadius="base">
+          <s-stack gap="base">
+            <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
+              <s-heading>{info.current ? t('heading') : t('chooseHeading')}</s-heading>
+              {info.editable && info.current && (
+                <s-link commandFor={MODAL_ID} command="--show">
+                  {t('change')}
+                </s-link>
+              )}
+            </s-stack>
+            {status === 'saved' && <s-banner tone="success">{t('saved')}</s-banner>}
+            {summary}
+            {!info.editable && !info.current && <s-text color="subdued">{t('locked')}</s-text>}
+          </s-stack>
+        </s-box>
+      )}
 
       <s-modal id={MODAL_ID} ref={modal} heading={t('chooseHeading')} size="large">
         <s-stack gap="base">
@@ -242,6 +249,6 @@ function Extension() {
           )}
         </s-stack>
       </s-modal>
-    </s-box>
+    </s-stack>
   );
 }
