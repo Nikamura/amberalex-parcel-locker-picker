@@ -13,6 +13,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
 COPY --from=build /app/drizzle ./drizzle
 COPY package.json ./
+RUN mkdir -p /data && chown node:node /data
+USER node
 VOLUME /data
 EXPOSE 3000
 CMD ["node", "node_modules/@react-router/serve/bin.js", "./build/server/index.js"]
