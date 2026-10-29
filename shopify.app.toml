@@ -1,7 +1,7 @@
-# Link to your app with `pnpm shopify app config link`, which fills in client_id and name.
-client_id = ""
+# Production config for https://lockers.cn.lt. Push with `pnpm dlx @shopify/cli app deploy`.
+client_id = "e94c913beb6f1e4efd371daf77090f13"
 name = "Parcel locker picker"
-application_url = "https://example.com"
+application_url = "https://lockers.cn.lt"
 embedded = true
 
 [access_scopes]
@@ -9,22 +9,29 @@ embedded = true
 # read_orders/write_orders: save the chosen locker on new orders
 scopes = "write_shipping,read_orders,write_orders"
 
+[auth]
+redirect_urls = [ "https://lockers.cn.lt/auth/callback" ]
+
 [webhooks]
 api_version = "2026-10"
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/app/uninstalled"
-  topics = ["app/uninstalled"]
+  topics = [ "app/uninstalled" ]
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
   uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
 
   # Needs protected customer data access approved for the app.
   [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
   uri = "/webhooks/orders/create"
+  topics = [ "orders/create" ]
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/compliance"
-  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+[build]
+# Keep `app dev` from replacing the production URLs.
+automatically_update_urls_on_dev = false
