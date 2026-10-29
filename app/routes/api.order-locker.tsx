@@ -156,11 +156,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const snapshot: OrderSnapshot = {
       id: order.id,
       attributes: order.customAttributes.map((a) => ({ name: a.key, value: a.value ?? "" })),
-      buyer: {
-        firstName: order.shippingAddress?.firstName,
-        lastName: order.shippingAddress?.lastName,
-        phone: order.shippingAddress?.phone,
-      },
     };
     await saveChosenLocker(admin, snapshot, locker, info.settings);
     return cors(Response.json({ ok: true, current: toResult(locker) }));

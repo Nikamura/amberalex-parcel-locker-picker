@@ -19,7 +19,6 @@ const order = snapshotFromWebhook({
   admin_graphql_api_id: "gid://shopify/Order/1",
   shipping_lines: [{ code: "PLP1:alsendo:53264" }],
   note_attributes: [{ name: "gift", value: "yes" }, { name: ATTR_LOCKER_ID, value: "stale" }],
-  shipping_address: { first_name: "Ona", last_name: "Onaitė", phone: "+37060000000" },
 });
 const settings = { ...defaultSettings(), networks: { lp_post: { enabled: true, label: "LP Express paštomatas", price: 2.99 } } };
 
@@ -32,23 +31,16 @@ describe("shipping line choice", () => {
 });
 
 describe("order update", () => {
-  it("keeps other attributes, stores the locker in separate fields, and can overwrite the address", () => {
-    const input = buildOrderInput(order, locker, { ...settings, overwriteShippingAddress: true });
+  it("keeps other attributes and stores the locker in separate fields", () => {
+    const input = buildOrderInput(order, locker, settings);
     expect(input.customAttributes).toEqual([
       { key: "gift", value: "yes" },
       { key: ATTR_LOCKER, value: "LP Express paštomatas – Amatų skveras" },
       { key: ATTR_LOCKER_ADDRESS, value: "Švitrigailos g. 13, 03209 Vilnius" },
       { key: ATTR_LOCKER_ID, value: "alsendo:53264" },
     ]);
-    expect(input.shippingAddress).toMatchObject({
-      firstName: "Ona", lastName: "Onaitė", phone: "+37060000000",
-      company: "LP Express paštomatas 53264", address1: "Amatų skveras", address2: "Švitrigailos g. 13", city: "Vilnius", zip: "03209", countryCode: "LT",
-    });
+    expect(input).not.toHaveProperty("shippingAddress");
     expect(JSON.parse((input.metafields as Array<{ value: string }>)[0].value)).toMatchObject({ status: "chosen", id: "53264", network: "lp_post" });
-  });
-
-  it("leaves the address alone when overwrite is off", () => {
-    expect(buildOrderInput(order, locker, { ...settings, overwriteShippingAddress: false }).shippingAddress).toBeUndefined();
   });
 
   it("marks a locker type as pending", () => {

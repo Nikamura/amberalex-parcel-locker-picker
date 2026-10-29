@@ -20,8 +20,6 @@ export interface Settings {
   combinedLabel: string;
   /** Order subtotal (shop currency, major units) from which lockers are free. */
   freeShippingOver: number | null;
-  /** Replace the order's shipping address with the locker address. */
-  overwriteShippingAddress: boolean;
   /**
    * When set, lockers are offered only if the shipping name or address contains
    * this text. Lets a live store test checkout without buyers seeing lockers.
@@ -61,7 +59,6 @@ export function defaultSettings(): Settings {
     combineNetworks: false,
     combinedLabel: "Parcel locker",
     freeShippingOver: null,
-    overwriteShippingAddress: false,
     testMarker: null,
   };
 }

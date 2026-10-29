@@ -75,7 +75,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     combineNetworks: form.get("combineNetworks") === "on",
     combinedLabel: String(form.get("combinedLabel") ?? "").trim() || previous.settings.combinedLabel,
     freeShippingOver: freeOver === "" ? null : Math.max(0, num(freeOver)),
-    overwriteShippingAddress: form.get("overwriteShippingAddress") === "on",
     testMarker: String(form.get("testMarker") ?? "").trim() || null,
   };
 
@@ -148,10 +147,8 @@ export default function Index() {
                 same or lower price.
               </s-list-item>
               <s-list-item>
-                The order gets the locker as separate fields ("Parcel locker", "Parcel locker address", "Parcel locker ID")
-                {settings.overwriteShippingAddress
-                  ? " and as its shipping address, so Alsendo's importer sees it."
-                  : "; the buyer's own address is left untouched."}
+                The order gets the locker as separate fields ("Parcel locker", "Parcel locker address", "Parcel locker
+                ID"). The buyer's own shipping address is left untouched.
               </s-list-item>
             </s-ordered-list>
           </s-section>
@@ -235,12 +232,6 @@ export default function Index() {
                 label="Countries"
                 details="Comma-separated country codes, e.g. LT, LV, EE"
                 defaultValue={settings.countries.join(", ")}
-              />
-              <s-checkbox
-                name="overwriteShippingAddress"
-                label="Replace the order's shipping address with the locker address"
-                details="Helps shipping tools that only read the address, like Alsendo's importer. The locker is always saved on the order too."
-                defaultChecked={settings.overwriteShippingAddress}
               />
               <s-text-field
                 name="testMarker"

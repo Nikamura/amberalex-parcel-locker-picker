@@ -12,7 +12,6 @@ export const PENDING_TAG = "locker-pending";
 export interface OrderSnapshot {
   id: string;
   attributes: Array<{ name: string; value: string }>;
-  buyer: { firstName?: string | null; lastName?: string | null; phone?: string | null };
 }
 
 // Subset of the orders/create webhook payload we use.
@@ -20,18 +19,12 @@ export interface OrderPayload {
   admin_graphql_api_id: string;
   shipping_lines?: Array<{ code?: string | null }>;
   note_attributes?: Array<{ name: string; value: string }>;
-  shipping_address?: { first_name?: string | null; last_name?: string | null; phone?: string | null } | null;
 }
 
 export function snapshotFromWebhook(order: OrderPayload): OrderSnapshot {
   return {
     id: order.admin_graphql_api_id,
     attributes: order.note_attributes ?? [],
-    buyer: {
-      firstName: order.shipping_address?.first_name,
-      lastName: order.shipping_address?.last_name,
-      phone: order.shipping_address?.phone,
-    },
   };
 }
 
@@ -57,7 +50,7 @@ function metafield(value: object) {
 /** OrderInput for orderUpdate once a specific locker is known. */
 export function buildOrderInput(order: OrderSnapshot, locker: Locker, settings: Settings) {
   const label = networkSettings(settings, locker.network).label;
-  const input: Record<string, unknown> = {
+  const input = {
     id: order.id,
     customAttributes: attributesWith(order, [
       { name: ATTR_LOCKER, value: `${label} – ${locker.name}` },
@@ -78,19 +71,6 @@ export function buildOrderInput(order: OrderSnapshot, locker: Locker, settings: 
     }),
   };
 
-  if (settings.overwriteShippingAddress) {
-    input.shippingAddress = {
-      firstName: order.buyer.firstName ?? undefined,
-      lastName: order.buyer.lastName ?? undefined,
-      phone: order.buyer.phone ?? undefined,
-      company: `${label} ${locker.externalId}`,
-      address1: locker.name,
-      address2: locker.address,
-      city: locker.city,
-      zip: locker.zip,
-      countryCode: locker.countryCode,
-    };
-  }
   return input;
 }
 
