@@ -109,7 +109,7 @@ export default function Index() {
   const money = (n: number) => `${n.toFixed(2)}${currency ? ` ${currency}` : ""}`;
 
   return (
-    <s-page heading="Amber Alex parcel lockers">
+    <s-page heading="Paštomatai">
       <Form method="post" data-save-bar data-discard-confirmation>
         <s-stack direction="block" gap="base">
           {result && !result.ok && (
@@ -263,7 +263,7 @@ export default function Index() {
               {carrierServiceId ? "Registered with Shopify." : "Save this page once to register them."}
             </SetupStep>
             <SetupStep title="Cart picker">
-              Turn on the "Amber Alex parcel lockers" app embed in the theme.{" "}
+              Turn on the "Paštomatai" app embed in the theme.{" "}
               <s-link href={links.themeEmbed} target="_top">Open theme editor</s-link>
             </SetupStep>
             <SetupStep title="Thank-you page">
