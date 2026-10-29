@@ -161,7 +161,7 @@ function Extension() {
   return (
     <s-stack gap="base">
       {needsChoice ? (
-        <s-banner tone="warning" heading={t('chooseHeading')}>
+        <s-banner tone="warning" heading={`📍 ${t('chooseHeading')}`}>
           <s-stack gap="base">
             <s-text>{t('chooseIntro')}</s-text>
             <s-stack direction="inline">
