@@ -6,6 +6,7 @@
   // nodejs_compat also fills process.env from vars and secrets.
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "workers_dev": true,
   "routes": [{ "pattern": "lockers.cn.lt", "custom_domain": true }],
   "vars": {
     "SHOPIFY_APP_URL": "https://lockers.cn.lt",
@@ -17,7 +18,7 @@
     {
       "binding": "DB",
       "database_name": "parcel-locker-picker",
-      "database_id": "REPLACE_WITH_D1_ID",
+      "database_id": "0f674e8a-c792-4fe0-81cc-73c55c26bb85",
       "migrations_dir": "drizzle"
     }
   ]
