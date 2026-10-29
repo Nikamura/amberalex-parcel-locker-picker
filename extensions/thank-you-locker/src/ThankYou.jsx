@@ -1,6 +1,7 @@
 import '@shopify/ui-extensions/preact';
 import {render} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
+import LT from '../locales/lt.json';
 
 const APP_URL = 'https://amberalex-parcel-locker-picker.karolis.workers.dev';
 const MODAL_ID = 'parcel-locker-modal';
@@ -9,8 +10,18 @@ export default async () => {
   render(<Extension />, document.body);
 };
 
+// Lockers are only offered for Lithuanian addresses, so speak Lithuanian to
+// those buyers even when the store or checkout runs in another language.
+let orderCountry = '';
+
+function lithuanian() {
+  if (shopify.extension.editor) return true;
+  if ((shopify.localization.language.value?.isoCode ?? '').toLowerCase().startsWith('lt')) return true;
+  return (orderCountry || shopify.shippingAddress?.value?.countryCode) === 'LT';
+}
+
 function t(key, values) {
-  return shopify.i18n.translate(key, values);
+  return lithuanian() && LT[key] ? LT[key] : shopify.i18n.translate(key, values);
 }
 
 async function api(path, init = {}) {
@@ -89,6 +100,7 @@ function Extension() {
       .then((data) => {
         setLoadState('done');
         if (!data.applicable) return;
+        orderCountry = data.country ?? '';
         setInfo(data);
         const paid = data.networks.some((n) => n.network === data.paidNetwork) ? data.paidNetwork : null;
         setNetwork(data.current?.network ?? paid ?? data.networks[0]?.network ?? '');

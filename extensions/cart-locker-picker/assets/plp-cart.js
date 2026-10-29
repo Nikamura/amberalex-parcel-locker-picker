@@ -7,7 +7,9 @@
   window.__plpLoaded = true;
 
   var APP = (cfg.appUrl || '').replace(/\/$/, '');
-  var LT = String(cfg.locale || document.documentElement.lang || '').toLowerCase().indexOf('lt') === 0;
+  // Lockers are only for Lithuanian addresses, so use Lithuanian for shoppers in
+  // Lithuania even when the store is shown in another language.
+  var LT = cfg.country === 'LT' || String(cfg.locale || document.documentElement.lang || '').toLowerCase().indexOf('lt') === 0;
   var T = LT
     ? {
         rowTitle: 'Pristatymas į paštomatą',
