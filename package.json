@@ -2,7 +2,7 @@
   "name": "parcel-locker-picker",
   "private": true,
   "scripts": {
-    "build": "react-router build",
+    "build": "cp extensions/cart-locker-picker/assets/plp-cart.js extensions/cart-locker-picker/assets/plp-cart.css public/ && react-router build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",

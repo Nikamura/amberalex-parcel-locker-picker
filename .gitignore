@@ -29,3 +29,5 @@ yarn.lock
 .react-router/
 
 /data
+/public/plp-cart.js
+/public/plp-cart.css
