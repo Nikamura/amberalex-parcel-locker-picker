@@ -83,7 +83,13 @@ async function describe(shop: string, order: AdminOrder) {
 
   const currentId = order.customAttributes.find((a) => a.key === "Parcel locker ID")?.value;
   const currentRef = parseLockerId(currentId ?? null);
-  const current = currentRef ? await findLocker(currentRef.source, currentRef.externalId) : undefined;
+  // The orders/create webhook may not have saved the locker yet when the thank-you
+  // page loads; a locker picked before checkout is already in the shipping line.
+  const current = currentRef
+    ? await findLocker(currentRef.source, currentRef.externalId)
+    : choice.kind === "locker"
+      ? await findLocker(choice.source, choice.externalId)
+      : undefined;
   const paidNetwork =
     choice.kind === "network"
       ? choice.network
