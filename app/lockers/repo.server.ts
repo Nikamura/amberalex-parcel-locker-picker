@@ -108,3 +108,14 @@ export async function saveShopSettings(
 export async function deleteShopSettings(shop: string) {
   await db.delete(shopSettings).where(eq(shopSettings.shop, shop)).run();
 }
+
+/** Every locker of the given networks as [id, lat, lng, networkIndex], for map markers. */
+export async function lockerPoints(country: string, networks: string[]) {
+  const rows = await db
+    .select({ source: lockers.source, externalId: lockers.externalId, network: lockers.network, lat: lockers.lat, lng: lockers.lng })
+    .from(lockers)
+    .where(and(eq(lockers.countryCode, country), inArray(lockers.network, networks)))
+    .all();
+  const round = (n: number) => Math.round(n * 1e5) / 1e5;
+  return rows.map((r) => [`${r.source}:${r.externalId}`, round(r.lat), round(r.lng), networks.indexOf(r.network)] as const);
+}

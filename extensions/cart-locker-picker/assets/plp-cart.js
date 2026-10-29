@@ -17,7 +17,7 @@
         title: 'Pasirinkite paštomatą',
         search: 'Miestas, gatvė ar paštomatas',
         near: 'Netoliese',
-        hint: 'Įveskite miestą ar adresą arba spauskite „Netoliese“.',
+        loading: 'Ieškoma paštomatų…',
         none: 'Paštomatų nerasta.',
         select: 'Pasirinkti šį paštomatą',
         saving: 'Išsaugoma…',
@@ -32,7 +32,7 @@
         title: 'Choose a parcel locker',
         search: 'City, street or locker name',
         near: 'Near me',
-        hint: 'Type a city or address, or use “Near me”.',
+        loading: 'Finding lockers…',
         none: 'No lockers found.',
         select: 'Choose this locker',
         saving: 'Saving…',
@@ -128,16 +128,28 @@
 
   /* ---------- modal ---------- */
 
-  var modal = null;
-  var state = { networks: [], q: '', near: null, results: [], selected: null };
-  var map = null;
-  var markers = [];
+  // MapLibre vector map with OpenFreeMap tiles: free, no API key, no usage limits.
+  var MAPLIBRE = 'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl';
+  var STYLE = 'https://tiles.openfreemap.org/styles/positron';
+  var COLORS = { dpd: '#dc0032', lp_post: '#e6a800', omniva: '#ff6600', venipak: '#5b2d8e', smartposti: '#f26b21', itella: '#f26b21', gls: '#0a1d9e', dhl: '#d40511' };
+  var EMPTY = { type: 'FeatureCollection', features: [] };
 
-  function loadLeaflet() {
-    if (window.L) return Promise.resolve();
+  var modal = null;
+  var state = { networks: [], q: '', near: null, results: [], selected: null, points: null };
+  var map = null;
+  var popup = null;
+  var quietMoves = 0; // camera moves started by code, which must not refresh the list
+
+  function colorOf(network) {
+    var n = (config.networks || []).find(function (x) { return x.network === network; });
+    return COLORS[(n && n.carrierLogo) || network] || '#111';
+  }
+
+  function loadMapLibre() {
+    if (window.maplibregl) return Promise.resolve();
     return new Promise(function (resolve, reject) {
-      document.head.appendChild(el('link', { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' }));
-      var s = el('script', { src: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' });
+      document.head.appendChild(el('link', { rel: 'stylesheet', href: MAPLIBRE + '.css' }));
+      var s = el('script', { src: MAPLIBRE + '.js' });
       s.onload = function () { resolve(); };
       s.onerror = reject;
       document.head.appendChild(s);
@@ -148,6 +160,9 @@
     if (modal) return;
     state.networks = (config.networks || []).map(function (n) { return n.network; });
     state.selected = chosen ? chosen.id : null;
+    state.q = '';
+    state.near = chosen && chosen.lat != null ? { lat: chosen.lat, lng: chosen.lng } : null;
+    state.you = null;
 
     var list = el('ul', { class: 'plp-list', role: 'listbox' });
     var input = el('input', { type: 'search', placeholder: T.search, 'aria-label': T.search });
@@ -161,7 +176,8 @@
           if (i >= 0 && state.networks.length > 1) state.networks.splice(i, 1);
           else if (i < 0) state.networks.push(n.network);
           chip.setAttribute('aria-pressed', String(state.networks.indexOf(n.network) >= 0));
-          search();
+          drawPoints();
+          search({ keepMap: true });
         });
         return chip;
       })
@@ -192,31 +208,112 @@
     var timer = null;
     input.addEventListener('input', function () {
       clearTimeout(timer);
-      timer = setTimeout(function () { state.q = input.value.trim(); state.near = state.q ? null : state.near; search(); }, 250);
+      timer = setTimeout(function () { state.q = input.value.trim(); state.near = null; state.you = null; search(); }, 250);
     });
     nearBtn.addEventListener('click', function () {
       if (!navigator.geolocation) return alert(T.geoError);
       navigator.geolocation.getCurrentPosition(
-        function (pos) { state.near = { lat: pos.coords.latitude, lng: pos.coords.longitude }; state.q = ''; input.value = ''; search(); },
+        function (pos) {
+          state.near = state.you = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          state.q = '';
+          input.value = '';
+          search();
+        },
         function () { alert(T.geoError); },
         { timeout: 10000 }
       );
     });
 
     state.list = list;
-    loadLeaflet().then(function () {
-      if (!modal) return;
-      map = L.map(mapEl, { zoomControl: true }).setView([55.2, 23.9], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap',
-      }).addTo(map);
-      drawMarkers();
-    });
-
-    if (chosen) { state.q = chosen.city || ''; input.value = state.q; }
+    list.appendChild(el('li', { class: 'plp-empty', text: T.loading }));
     search();
-    setTimeout(function () { input.focus(); }, 50);
+    loadMapLibre().then(function () { if (modal) initMap(mapEl); });
+  }
+
+  function initMap(mapEl) {
+    map = new maplibregl.Map({ container: mapEl, style: STYLE, center: [23.9, 55.2], zoom: 6.2, attributionControl: { compact: true } });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.on('load', function () {
+      map.addSource('plp', { type: 'geojson', data: EMPTY, cluster: true, clusterRadius: 42, clusterMaxZoom: 11 });
+      map.addLayer({
+        id: 'plp-clusters', type: 'circle', source: 'plp', filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': '#111', 'circle-opacity': 0.88,
+          'circle-radius': ['step', ['get', 'point_count'], 14, 25, 18, 150, 23],
+          'circle-stroke-width': 3, 'circle-stroke-color': 'rgba(255,255,255,0.9)',
+        },
+      });
+      map.addLayer({
+        id: 'plp-count', type: 'symbol', source: 'plp', filter: ['has', 'point_count'],
+        layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
+        paint: { 'text-color': '#fff' },
+      });
+      map.addLayer({
+        id: 'plp-points', type: 'circle', source: 'plp', filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['get', 'c'],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 4.5, 15, 8],
+          'circle-stroke-width': 2, 'circle-stroke-color': '#fff',
+        },
+      });
+      map.addSource('plp-you', { type: 'geojson', data: EMPTY });
+      map.addLayer({ id: 'plp-you', type: 'circle', source: 'plp-you', paint: { 'circle-radius': 7, 'circle-color': '#1a73e8', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
+      map.addSource('plp-sel', { type: 'geojson', data: EMPTY });
+      map.addLayer({ id: 'plp-sel', type: 'circle', source: 'plp-sel', paint: { 'circle-radius': 11, 'circle-color': ['get', 'c'], 'circle-stroke-width': 4, 'circle-stroke-color': '#fff' } });
+
+      map.on('click', 'plp-clusters', function (e) {
+        var f = e.features[0];
+        map.getSource('plp').getClusterExpansionZoom(f.properties.cluster_id).then(function (z) {
+          map.easeTo({ center: f.geometry.coordinates, zoom: z + 0.5 });
+        });
+      });
+      map.on('click', 'plp-points', function (e) { openLocker(e.features[0].properties.id, e.features[0].geometry.coordinates); });
+      ['plp-clusters', 'plp-points'].forEach(function (layer) {
+        map.on('mouseenter', layer, function () { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', layer, function () { map.getCanvas().style.cursor = ''; });
+      });
+      // After the buyer pans or zooms, list the lockers around the new map centre.
+      map.on('moveend', function () {
+        if (quietMoves > 0) { quietMoves--; return; }
+        if (state.q || map.getZoom() < 9) return;
+        var c = map.getCenter();
+        state.near = { lat: c.lat, lng: c.lng };
+        search({ keepMap: true });
+      });
+
+      loadPoints();
+      drawResults(false);
+    });
+  }
+
+  function moveQuietly(fn) {
+    if (!map) return;
+    quietMoves++;
+    fn();
+  }
+
+  function loadPoints() {
+    var all = (config.networks || []).map(function (n) { return n.network; });
+    var p = new URLSearchParams({ country: (config.countries || ['LT'])[0], network: all.join(',') });
+    fetch(APP + '/api/locker-points?' + p)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        state.points = (data.points || []).map(function (pt) { return { id: pt[0], lat: pt[1], lng: pt[2], network: data.networks[pt[3]] }; });
+        drawPoints();
+      })
+      .catch(function () {});
+  }
+
+  function drawPoints() {
+    if (!map || !map.getSource('plp') || !state.points) return;
+    map.getSource('plp').setData({
+      type: 'FeatureCollection',
+      features: state.points
+        .filter(function (pt) { return state.networks.indexOf(pt.network) >= 0; })
+        .map(function (pt) {
+          return { type: 'Feature', properties: { id: pt.id, c: colorOf(pt.network) }, geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] } };
+        }),
+    });
   }
 
   function onKey(e) { if (e.key === 'Escape') closeModal(); }
@@ -224,33 +321,32 @@
   function closeModal() {
     if (!modal) return;
     document.removeEventListener('keydown', onKey);
+    if (map) map.remove();
     modal.remove();
     modal = null;
     map = null;
-    markers = [];
+    popup = null;
+    quietMoves = 0;
     document.documentElement.style.overflow = '';
   }
 
-  function search() {
-    var list = state.list;
-    if (!state.q && !state.near) {
-      state.results = [];
-      list.innerHTML = '';
-      list.appendChild(el('li', { class: 'plp-empty', text: T.hint }));
-      drawMarkers();
-      return;
-    }
-    var p = new URLSearchParams({ country: (config.countries || ['LT'])[0], network: state.networks.join(','), limit: '50' });
+  function search(opts) {
+    opts = opts || {};
+    var p = new URLSearchParams({ country: (config.countries || ['LT'])[0], network: state.networks.join(','), limit: '30' });
     if (state.q) p.set('q', state.q);
-    if (state.near) p.set('near', state.near.lat + ',' + state.near.lng);
+    else if (state.near) p.set('near', state.near.lat.toFixed(5) + ',' + state.near.lng.toFixed(5));
     var token = (state.token = Math.random());
-    fetch(APP + '/api/lockers?' + p)
+    return fetch(APP + '/api/lockers?' + p)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         if (token !== state.token || !modal) return;
         state.results = data.lockers || [];
+        if (data.origin) {
+          state.near = { lat: data.origin.lat, lng: data.origin.lng };
+          if (data.origin.kind === 'ip') state.you = state.near;
+        }
         renderList();
-        drawMarkers();
+        drawResults(Boolean(opts.keepMap));
       })
       .catch(function () {});
   }
@@ -263,7 +359,8 @@
       return;
     }
     state.results.forEach(function (l) {
-      var item = el('li', { class: 'plp-item', role: 'option', 'aria-selected': String(l.id === state.selected), tabindex: '0' }, [
+      var item = el('li', { class: 'plp-item', role: 'option', 'aria-selected': String(l.id === state.selected), tabindex: '0', 'data-id': l.id }, [
+        el('span', { class: 'plp-dot', style: 'background:' + colorOf(l.network) }),
         logos(l),
         el('div', { class: 'plp-item__body' }, [
           el('div', { class: 'plp-item__name', text: l.name }),
@@ -272,38 +369,52 @@
         l.distanceKm != null ? el('span', { class: 'plp-item__dist', text: km(l.distanceKm) }) : null,
       ]);
       item.addEventListener('click', function () { choose(l); });
-      item.addEventListener('mouseenter', function () { focusMarker(l.id); });
+      item.addEventListener('mouseenter', function () { highlight(l); });
       item.addEventListener('keydown', function (e) { if (e.key === 'Enter') choose(l); });
       list.appendChild(item);
     });
   }
 
-  function drawMarkers() {
-    if (!map || !window.L) return;
-    markers.forEach(function (m) { m.remove(); });
-    markers = [];
-    var bounds = [];
-    state.results.forEach(function (l) {
-      var icon = L.divIcon({
-        className: 'plp-pin',
-        html: l.carrierLogo ? '<img src="' + APP + '/logos/carrier-' + l.carrierLogo + '.png" alt="">' : '',
-        iconSize: [30, 30],
-      });
-      var btn = el('button', { type: 'button', text: T.select });
-      btn.addEventListener('click', function () { choose(l); });
-      var pop = el('div', { class: 'plp-pop' }, [el('b', { text: l.name }), el('span', { text: line(l) }), btn]);
-      var m = L.marker([l.lat, l.lng], { icon: icon }).bindPopup(pop).addTo(map);
-      m._plpId = l.id;
-      markers.push(m);
-      bounds.push([l.lat, l.lng]);
-    });
-    if (state.near) bounds.push([state.near.lat, state.near.lng]);
-    if (bounds.length) map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+  function highlight(l) {
+    if (!map || !map.getSource('plp-sel')) return;
+    map.getSource('plp-sel').setData(
+      l ? { type: 'Feature', properties: { c: colorOf(l.network) }, geometry: { type: 'Point', coordinates: [l.lng, l.lat] } } : EMPTY
+    );
   }
 
-  function focusMarker(id) {
-    var m = markers.find(function (x) { return x._plpId === id; });
-    if (m && map) m.openPopup();
+  // Frame the closest results (and the buyer's position) unless the buyer moved the map.
+  function drawResults(keepMap) {
+    if (!map || !map.getSource('plp-you')) return;
+    map.getSource('plp-you').setData(
+      state.you ? { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [state.you.lng, state.you.lat] } } : EMPTY
+    );
+    var current = state.results.find(function (l) { return l.id === state.selected; });
+    highlight(current || null);
+    if (keepMap || !state.results.length) return;
+    var bounds = new maplibregl.LngLatBounds();
+    state.results.slice(0, state.q ? 30 : 6).forEach(function (l) { bounds.extend([l.lng, l.lat]); });
+    if (state.you) bounds.extend([state.you.lng, state.you.lat]);
+    moveQuietly(function () { map.fitBounds(bounds, { padding: 50, maxZoom: 14, duration: 600 }); });
+  }
+
+  function openLocker(id, coords) {
+    var show = function (l) {
+      if (!l || !map) return;
+      highlight(l);
+      var item = state.list.querySelector('[data-id="' + CSS.escape(id) + '"]');
+      if (item) item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      var btn = el('button', { type: 'button', text: T.select });
+      btn.addEventListener('click', function () { choose(l); });
+      var pop = el('div', { class: 'plp-pop' }, [logos(l), el('b', { text: l.name }), el('span', { text: line(l) }), btn]);
+      if (popup) popup.remove();
+      popup = new maplibregl.Popup({ closeButton: false, offset: 14, maxWidth: '260px' }).setLngLat(coords).setDOMContent(pop).addTo(map);
+    };
+    var found = state.results.find(function (l) { return l.id === id; });
+    if (found) return show(found);
+    // Not in the list yet: list the lockers around it, then open it.
+    state.q = '';
+    state.near = { lat: coords[1], lng: coords[0] };
+    search({ keepMap: true }).then(function () { show(state.results.find(function (l) { return l.id === id; })); });
   }
 
   /* ---------- saving ---------- */
@@ -314,7 +425,7 @@
     state.list.querySelectorAll('.plp-item').forEach(function (n) { n.style.opacity = '.5'; });
     saveToCart(l)
       .then(function () {
-        chosen = { id: l.id, name: l.name, address: l.address, city: l.city, network: l.network, brand: l.brand, carrierLogo: l.carrierLogo };
+        chosen = { id: l.id, name: l.name, address: l.address, city: l.city, network: l.network, brand: l.brand, carrierLogo: l.carrierLogo, lat: l.lat, lng: l.lng };
         closeModal();
         refreshRows();
       })
@@ -343,7 +454,7 @@
           });
         });
         return chain.then(function () {
-          var summary = { id: l.id, name: l.name, address: l.address, city: l.city, network: l.network, brand: l.brand || null, carrierLogo: l.carrierLogo || null };
+          var summary = { id: l.id, name: l.name, address: l.address, city: l.city, network: l.network, brand: l.brand || null, carrierLogo: l.carrierLogo || null, lat: l.lat, lng: l.lng };
           return post('/cart/update.js', { attributes: { _plp_locker: JSON.stringify(summary) } });
         });
       });
