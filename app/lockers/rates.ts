@@ -15,7 +15,12 @@ export interface RateRequest {
       address1?: string | null;
       address2?: string | null;
     };
-    items: Array<{ price: number; quantity: number; requires_shipping?: boolean }>;
+    items: Array<{
+      price: number;
+      quantity: number;
+      requires_shipping?: boolean;
+      properties?: Record<string, string> | null;
+    }>;
     currency: string;
   };
 }
