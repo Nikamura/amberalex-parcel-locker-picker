@@ -7,9 +7,11 @@ type = "ui_extension"
 uid = "fd3305aa-cf56-bbd3-178f-0ace2a00af9c9c3e2fe5"
 
 # Thank-you page: the buyer picks (or changes) the exact parcel locker.
+# A static target renders automatically under the page header, so merchants
+# don't have to place a block in the checkout editor.
 [[extensions.targeting]]
 module = "./src/ThankYou.jsx"
-target = "purchase.thank-you.block.render"
+target = "purchase.thank-you.header.render-after"
 
 [extensions.capabilities]
 # Calls https://lockers.cn.lt with the checkout session token.
