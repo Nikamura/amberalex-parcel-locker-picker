@@ -111,7 +111,7 @@
   // Insert the row just above the block that holds the checkout button, so it
   // gets its own full-width line instead of joining the theme's button row.
   function mount() {
-    var buttons = document.querySelectorAll('[name="checkout"], #checkout, #cart-sidebar-checkout');
+    var buttons = document.querySelectorAll('[name="checkout"], #checkout, #cart-sidebar-checkout, #cart-checkout');
     buttons.forEach(function (btn) {
       var block = btn.parentElement;
       var host = block && block.parentElement;
