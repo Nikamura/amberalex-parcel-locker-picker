@@ -1,5 +1,5 @@
 import { decodeServiceCode, formatLockerId, type ServiceChoice } from "./service-code";
-import { networkSettings, type Settings } from "./settings";
+import { ANY_NETWORK, networkSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
 export const ATTR_LOCKER = "Parcel locker";
@@ -93,7 +93,7 @@ export function buildOrderInput(order: OrderSnapshot, locker: Locker, settings: 
 
 /** OrderInput for an order whose buyer will choose the locker after payment. */
 export function buildPendingOrderInput(order: OrderSnapshot, network: string, settings: Settings) {
-  const label = networkSettings(settings, network).label;
+  const label = network === ANY_NETWORK ? settings.combinedLabel : networkSettings(settings, network).label;
   return {
     id: order.id,
     customAttributes: attributesWith(order, [{ name: ATTR_LOCKER, value: `${label}: not chosen yet` }]),

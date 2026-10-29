@@ -12,6 +12,12 @@ export interface Settings {
   networks: Record<string, NetworkSettings>;
   /** Shown under each locker-type rate when the locker is chosen after payment. */
   chooseLaterText: string;
+  /**
+   * Offer one combined rate for all locker types instead of one per type; the buyer
+   * picks the type and locker after payment. Priced at the most expensive enabled type.
+   */
+  combineNetworks: boolean;
+  combinedLabel: string;
   /** Order subtotal (shop currency, major units) from which lockers are free. */
   freeShippingOver: number | null;
   /** Replace the order's shipping address with the locker address. */
@@ -38,10 +44,20 @@ export function defaultSettings(): Settings {
     countries: ["LT"],
     networks: {},
     chooseLaterText: "Choose your parcel locker after payment",
+    combineNetworks: false,
+    combinedLabel: "Parcel locker",
     freeShippingOver: null,
     overwriteShippingAddress: true,
     testMarker: null,
   };
+}
+
+/** Network key of the combined "any locker type" rate. */
+export const ANY_NETWORK = "any";
+
+/** Price of the combined rate: the most expensive enabled type, so every type is allowed afterwards. */
+export function combinedPrice(settings: Settings, networks: string[]): number {
+  return Math.max(0, ...networks.map((n) => networkSettings(settings, n).price));
 }
 
 export function networkSettings(settings: Settings, network: string): NetworkSettings {

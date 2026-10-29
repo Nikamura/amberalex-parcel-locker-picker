@@ -52,6 +52,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       .filter((c) => /^[A-Z]{2}$/.test(c)),
     networks: { ...previous.settings.networks, ...networks },
     chooseLaterText: String(form.get("chooseLaterText") ?? "").trim() || previous.settings.chooseLaterText,
+    combineNetworks: form.get("combineNetworks") === "on",
+    combinedLabel: String(form.get("combinedLabel") ?? "").trim() || previous.settings.combinedLabel,
     freeShippingOver: freeOver === "" ? null : Math.max(0, num(freeOver)),
     overwriteShippingAddress: form.get("overwriteShippingAddress") === "on",
     testMarker: String(form.get("testMarker") ?? "").trim() || null,
@@ -115,6 +117,18 @@ export default function Index() {
               label={`Free locker delivery from order subtotal${currency ? ` (${currency})` : ""}`}
               details="Leave empty to always charge."
               defaultValue={settings.freeShippingOver === null ? "" : String(settings.freeShippingOver)}
+            />
+            <s-checkbox
+              name="combineNetworks"
+              label="Show one checkout option for all locker types"
+              details="The buyer picks the type and locker after payment. Priced at the most expensive enabled type."
+              defaultChecked={settings.combineNetworks}
+            />
+            <s-text-field
+              name="combinedLabel"
+              label="Name of the combined option"
+              details="For example: Paštomatas (DPD / LP Express / Omniva)"
+              defaultValue={settings.combinedLabel}
             />
             <s-text-field
               name="testMarker"

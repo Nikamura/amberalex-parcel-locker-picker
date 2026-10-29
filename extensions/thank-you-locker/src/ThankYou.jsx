@@ -49,7 +49,8 @@ function Extension() {
         setLoadState('done');
         if (!data.applicable) return;
         setInfo(data);
-        setNetwork(data.current?.network ?? data.paidNetwork ?? data.networks[0]?.network ?? '');
+        const paid = data.networks.some((n) => n.network === data.paidNetwork) ? data.paidNetwork : null;
+        setNetwork(data.current?.network ?? paid ?? data.networks[0]?.network ?? '');
         setResults(data.suggestions ?? []);
         setEditing(!data.current);
       })

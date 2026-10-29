@@ -89,6 +89,13 @@ describe("buildRates", () => {
     ]);
   });
 
+  it("offers a single combined rate priced at the most expensive type", () => {
+    const rates = buildRates(request(), settings({ combineNetworks: true, combinedLabel: "Paštomatas (DPD / Omniva)" }), lockers, "EUR");
+    expect(rates).toEqual([
+      { service_name: "Paštomatas (DPD / Omniva)", service_code: "PLP1N:any", total_price: "349", currency: "EUR", description: "Choose your parcel locker after payment" },
+    ]);
+  });
+
   it("puts the locker picked on the cart page first", () => {
     const req = request();
     req.rate.items[0].properties = { _plp_locker: "alsendo:2" };

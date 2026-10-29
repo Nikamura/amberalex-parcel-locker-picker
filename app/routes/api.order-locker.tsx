@@ -5,7 +5,7 @@ import { saveChosenLocker } from "../lockers/order-sync.server";
 import { findLocker, getShopSettings, lockersForCountry } from "../lockers/repo.server";
 import { searchLockers, toResult } from "../lockers/search";
 import { parseLockerId } from "../lockers/service-code";
-import { networkSettings, type Settings } from "../lockers/settings";
+import { ANY_NETWORK, combinedPrice, networkSettings, type Settings } from "../lockers/settings";
 
 // Lets the buyer choose or change the locker on the thank-you page.
 // Auth: checkout session token (dest = shop) plus the order's confirmation number.
@@ -67,9 +67,11 @@ async function loadOrder(shop: string, orderId: string, number: string) {
 /** Locker types the buyer may switch to: any enabled type that costs the same or less than what they paid. */
 function allowedNetworks(settings: Settings, country: string, paidNetwork: string) {
   const present = new Set(lockersForCountry(country).map((l) => l.network));
-  const paidPrice = networkSettings(settings, paidNetwork).price;
-  return [...present]
-    .filter((n) => networkSettings(settings, n).enabled && networkSettings(settings, n).price <= paidPrice)
+  const enabled = [...present].filter((n) => networkSettings(settings, n).enabled);
+  const paidPrice =
+    paidNetwork === ANY_NETWORK ? combinedPrice(settings, enabled) : networkSettings(settings, paidNetwork).price;
+  return enabled
+    .filter((n) => networkSettings(settings, n).price <= paidPrice)
     .sort()
     .map((network) => ({ network, label: networkSettings(settings, network).label }));
 }
@@ -117,7 +119,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       ? (() => {
           const all = lockersForCountry(info.country);
           return searchLockers(
-            all.filter((l) => l.network === (info.response.current?.network ?? info.paidNetwork)),
+            all.filter(
+              (l) =>
+                l.network ===
+                (info.response.current?.network ??
+                  (info.paidNetwork === ANY_NETWORK ? info.response.networks[0]?.network : info.paidNetwork)),
+            ),
             { zip: info.response.zip, limit: 10, locateIn: all },
           );
         })()

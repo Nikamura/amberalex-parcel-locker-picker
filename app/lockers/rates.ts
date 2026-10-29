@@ -1,5 +1,5 @@
 import { encodeNetworkCode, encodeServiceCode, parseLockerId } from "./service-code";
-import { networkSettings, type Settings } from "./settings";
+import { ANY_NETWORK, combinedPrice, networkSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
 /** Hidden cart line property set by the cart-page picker. */
@@ -69,7 +69,8 @@ export function buildRates(
     .reduce((sum, i) => sum + i.price * i.quantity, 0);
   const free =
     settings.freeShippingOver !== null && subtotalMinor >= Math.round(settings.freeShippingOver * 100);
-  const price = (network: string) => String(free ? 0 : Math.round(networkSettings(settings, network).price * 100));
+  const minor = (amount: number) => String(free ? 0 : Math.round(amount * 100));
+  const price = (network: string) => minor(networkSettings(settings, network).price);
 
   const available = new Set(lockers.map((l) => l.network));
   const networks = [...available].filter((n) => networkSettings(settings, n).enabled).sort();
@@ -85,6 +86,17 @@ export function buildRates(
       currency,
       description: [chosen.address, chosen.city].filter(Boolean).join(", "),
     });
+  }
+
+  if (settings.combineNetworks && networks.length > 0) {
+    rates.push({
+      service_name: settings.combinedLabel,
+      service_code: encodeNetworkCode(ANY_NETWORK),
+      total_price: minor(combinedPrice(settings, networks)),
+      currency,
+      description: settings.chooseLaterText,
+    });
+    return rates;
   }
 
   for (const network of networks) {
