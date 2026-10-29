@@ -1,4 +1,4 @@
-import { encodeNetworkCode, encodeServiceCode, parseLockerId } from "./service-code";
+import { encodeNetworkCode, encodeServiceCode } from "./service-code";
 import { ANY_NETWORK, combinedPrice, networkSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
@@ -50,14 +50,21 @@ export function cartLockerId(items: RateRequest["rate"]["items"]): string | null
   return null;
 }
 
+export interface RateInputs {
+  /** Locker networks present in the destination country. */
+  networks: string[];
+  /** The locker picked on the cart page, if it exists in the destination country. */
+  chosen?: Locker | null;
+}
+
 /**
- * One rate per enabled locker type (the locker is picked after payment), plus the
- * locker chosen on the cart page, if any. `lockers` must be the destination country's.
+ * The locker picked on the cart page alone, or otherwise one rate per enabled
+ * locker type (or one combined rate) with the locker picked after payment.
  */
 export function buildRates(
   request: RateRequest,
   settings: Settings,
-  lockers: Locker[],
+  inputs: RateInputs,
   currency: string,
 ): Rate[] {
   const { destination, items } = request.rate;
@@ -72,13 +79,11 @@ export function buildRates(
   const minor = (amount: number) => String(free ? 0 : Math.round(amount * 100));
   const price = (network: string) => minor(networkSettings(settings, network).price);
 
-  const available = new Set(lockers.map((l) => l.network));
-  const networks = [...available].filter((n) => networkSettings(settings, n).enabled).sort();
+  const networks = [...new Set(inputs.networks)].filter((n) => networkSettings(settings, n).enabled).sort();
   const rates: Rate[] = [];
 
-  const ref = parseLockerId(cartLockerId(items));
-  const chosen = ref && lockers.find((l) => l.source === ref.source && l.externalId === ref.externalId);
-  if (chosen && networks.includes(chosen.network)) {
+  const chosen = inputs.chosen;
+  if (chosen && chosen.countryCode === destination.country && networks.includes(chosen.network)) {
     rates.push({
       service_name: `${networkSettings(settings, chosen.network).label} – ${chosen.name}`,
       service_code: encodeServiceCode(chosen),

@@ -10,7 +10,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const current = payload.current as string[];
   if (session) {
-    db.update(sessionTable)
+    await db.update(sessionTable)
       .set({ scope: current.toString() })
       .where(eq(sessionTable.id, session.id))
       .run();

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { verifyShopifyHmac } from "../app/carrier/hmac";
 import { createHmac } from "node:crypto";
-import { locateBuyer, nearestPerNetwork, normalizeZip } from "../app/lockers/nearest";
+import { normalizeZip } from "../app/lockers/nearest";
 import { buildRates, type RateRequest } from "../app/lockers/rates";
-import { searchLockers } from "../app/lockers/search";
+import { searchText } from "../app/lockers/search";
 import { detectBrand } from "../app/lockers/brands";
 import { decodeServiceCode, encodeServiceCode } from "../app/lockers/service-code";
 import { defaultSettings, type Settings } from "../app/lockers/settings";
@@ -64,26 +64,13 @@ describe("locating the buyer", () => {
     expect(normalizeZip("LT-01101")).toBe("01101");
     expect(normalizeZip(" 01101 ")).toBe("01101");
   });
-
-  it("uses the longest matching postcode prefix", () => {
-    const p = locateBuyer(lockers, { zip: "44123" });
-    expect(p).toEqual({ lat: 54.898, lng: 23.903 });
-  });
-
-  it("falls back to the city name", () => {
-    expect(locateBuyer(lockers, { zip: "99999", city: "kaunas" })).toEqual({ lat: 54.898, lng: 23.903 });
-    expect(locateBuyer(lockers, { zip: "99999", city: "Nowhere" })).toBeNull();
-  });
-
-  it("returns the nearest lockers per network", () => {
-    const ids = nearestPerNetwork(lockers, { lat: 54.687, lng: 25.28 }, 2).map((l) => l.externalId);
-    expect(ids).toEqual(["1", "4", "2", "5"]);
-  });
 });
+
+const inLT = { networks: ["dpd", "omniva"] };
 
 describe("buildRates", () => {
   it("offers one rate per enabled locker type", () => {
-    const rates = buildRates(request(), settings(), lockers, "EUR");
+    const rates = buildRates(request(), settings(), inLT, "EUR");
     expect(rates).toEqual([
       { service_name: "DPD", service_code: "PLP1N:dpd", total_price: "349", currency: "EUR", description: "Choose your parcel locker after payment" },
       { service_name: "Omniva", service_code: "PLP1N:omniva", total_price: "299", currency: "EUR", description: "Choose your parcel locker after payment" },
@@ -91,45 +78,40 @@ describe("buildRates", () => {
   });
 
   it("offers a single combined rate priced at the most expensive type", () => {
-    const rates = buildRates(request(), settings({ combineNetworks: true, combinedLabel: "Paštomatas (DPD / Omniva)" }), lockers, "EUR");
+    const rates = buildRates(request(), settings({ combineNetworks: true, combinedLabel: "Paštomatas (DPD / Omniva)" }), inLT, "EUR");
     expect(rates).toEqual([
       { service_name: "Paštomatas (DPD / Omniva)", service_code: "PLP1N:any", total_price: "349", currency: "EUR", description: "Choose your parcel locker after payment" },
     ]);
   });
 
   it("offers only the locker picked on the cart page", () => {
-    const req = request();
-    req.rate.items[0].properties = { _plp_locker: "alsendo:2" };
-    const rates = buildRates(req, settings(), lockers, "EUR");
+    const rates = buildRates(request(), settings(), { ...inLT, chosen: lockers[1] }, "EUR");
     expect(rates[0]).toMatchObject({ service_name: "Omniva – Locker 2", service_code: "PLP1:alsendo:2", total_price: "299" });
     expect(rates).toHaveLength(1);
   });
 
   it("ignores a cart locker that is unknown or of a disabled network", () => {
-    const req = request();
-    req.rate.items[0].properties = { _plp_locker: "alsendo:999" };
-    expect(buildRates(req, settings(), lockers, "EUR")).toHaveLength(2);
-    req.rate.items[0].properties = { _plp_locker: "alsendo:4" };
+    expect(buildRates(request(), settings(), { ...inLT, chosen: null }, "EUR")).toHaveLength(2);
     const onlyOmniva = settings({ networks: { omniva: { enabled: true, label: "Omniva", price: 2.99 } } });
-    expect(buildRates(req, onlyOmniva, lockers, "EUR").map((r) => r.service_code)).toEqual(["PLP1N:omniva"]);
+    expect(buildRates(request(), onlyOmniva, { ...inLT, chosen: lockers[3] }, "EUR").map((r) => r.service_code)).toEqual(["PLP1N:omniva"]);
   });
 
   it("skips other countries and disabled shops", () => {
-    expect(buildRates(request({ country: "LV" }), settings(), lockers, "EUR")).toEqual([]);
-    expect(buildRates(request(), settings({ enabled: false }), lockers, "EUR")).toEqual([]);
+    expect(buildRates(request({ country: "LV" }), settings(), inLT, "EUR")).toEqual([]);
+    expect(buildRates(request(), settings({ enabled: false }), inLT, "EUR")).toEqual([]);
   });
 
   it("only answers addresses with the test marker in test mode", () => {
     const test = settings({ testMarker: "PLPTEST" });
-    expect(buildRates(request(), test, lockers, "EUR")).toEqual([]);
-    expect(buildRates(request({ address1: "Gatvė 1 plptest" }), test, lockers, "EUR").length).toBeGreaterThan(0);
-    expect(buildRates(request({ name: "Ona PLPTEST" }), test, lockers, "EUR").length).toBeGreaterThan(0);
+    expect(buildRates(request(), test, inLT, "EUR")).toEqual([]);
+    expect(buildRates(request({ address1: "Gatvė 1 plptest" }), test, inLT, "EUR").length).toBeGreaterThan(0);
+    expect(buildRates(request({ name: "Ona PLPTEST" }), test, inLT, "EUR").length).toBeGreaterThan(0);
   });
 
   it("makes lockers free above the threshold", () => {
-    const rates = buildRates(request({}, 10_000), settings({ freeShippingOver: 100 }), lockers, "EUR");
+    const rates = buildRates(request({}, 10_000), settings({ freeShippingOver: 100 }), inLT, "EUR");
     expect(rates.every((r) => r.total_price === "0")).toBe(true);
-    const below = buildRates(request({}, 9_999), settings({ freeShippingOver: 100 }), lockers, "EUR");
+    const below = buildRates(request({}, 9_999), settings({ freeShippingOver: 100 }), inLT, "EUR");
     expect(below[1].total_price).toBe("299");
   });
 });
@@ -145,22 +127,12 @@ describe("brands", () => {
   });
 });
 
-describe("searchLockers", () => {
-  const list = [
-    locker({ externalId: "a", network: "omniva", zip: "44100", lat: 54.9, lng: 23.9, name: "Kauno LIDL Savanorių pr. 315", city: "Kaunas" }),
-    locker({ externalId: "b", network: "dpd", zip: "01100", lat: 54.68, lng: 25.28, name: "Akropolis", city: "Vilnius" }),
-  ];
-  it("matches words ignoring case and diacritics", () => {
-    expect(searchLockers(list, { q: "savanoriu kaunas" }).map((l) => l.id)).toEqual(["alsendo:a"]);
-    expect(searchLockers(list, { q: "nothing" })).toEqual([]);
-  });
-  it("places the postcode using another set of lockers", () => {
-    const omnivaOnly = [list[0], locker({ externalId: "c", network: "omniva", zip: "99999", lat: 54.69, lng: 25.29, name: "Vilnius omniva", city: "Vilnius" })];
-    expect(searchLockers(omnivaOnly, { zip: "01105", locateIn: list }).map((l) => l.id)).toEqual(["alsendo:c", "alsendo:a"]);
-  });
-
-  it("sorts by distance from a postcode", () => {
-    expect(searchLockers(list, { zip: "01105" }).map((l) => l.id)).toEqual(["alsendo:b", "alsendo:a"]);
+describe("searchText", () => {
+  it("folds case and diacritics into one searchable string", () => {
+    const text = searchText(locker({ externalId: "a", network: "omniva", zip: "44100", lat: 54.9, lng: 23.9, name: "Kauno LIDL Savanorių pr. 315", city: "Kaunas" }));
+    expect(text).toContain("savanoriu");
+    expect(text).toContain("kaunas");
+    expect(text).toContain("44100");
   });
 });
 

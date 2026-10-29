@@ -1,4 +1,4 @@
-import "@shopify/shopify-app-react-router/adapters/node";
+import "@shopify/shopify-api/adapters/cf-worker";
 import {
   ApiVersion,
   AppDistribution,
@@ -7,7 +7,6 @@ import {
 import { DrizzleSessionStorageSQLite } from "@shopify/shopify-app-session-storage-drizzle";
 import db from "./db.server";
 import { sessionTable } from "./db/schema";
-import { startLockerScheduler } from "./lockers/scheduler.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -25,8 +24,6 @@ const shopify = shopifyApp({
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
     : {}),
 });
-
-startLockerScheduler();
 
 export default shopify;
 export const apiVersion = ApiVersion.October26;

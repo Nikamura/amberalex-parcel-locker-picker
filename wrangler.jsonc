@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "parcel-locker-picker",
+  "main": "./workers/app.ts",
+  "compatibility_date": "2026-10-01",
+  // nodejs_compat also fills process.env from vars and secrets.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "workers_dev": true,
+  "routes": [{ "pattern": "lockers.cn.lt", "custom_domain": true }],
+  "vars": {
+    "SHOPIFY_APP_URL": "https://lockers.cn.lt",
+    "SHOPIFY_API_KEY": "e94c913beb6f1e4efd371daf77090f13",
+    "SCOPES": "write_shipping,read_orders,write_orders"
+  },
+  // SHOPIFY_API_SECRET is a secret: `wrangler secret put SHOPIFY_API_SECRET`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "parcel-locker-picker",
+      "database_id": "0f674e8a-c792-4fe0-81cc-73c55c26bb85",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

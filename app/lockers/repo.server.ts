@@ -1,46 +1,12 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, like, sql, type SQL } from "drizzle-orm";
 import db from "../db.server";
 import { lockers, shopSettings, syncRuns } from "../db/schema";
+import { distanceKm, normalizeZip, type Point } from "./nearest";
+import { fold, toResult, type LockerResult } from "./search";
 import { defaultSettings, type Settings } from "./settings";
-import type { Locker, LockerSource } from "./types";
-import { alsendoSource } from "./sources/alsendo";
+import type { Locker } from "./types";
 
-export const sources: LockerSource[] = [alsendoSource];
-
-export async function syncSource(source: LockerSource) {
-  const finishedAt = () => new Date().toISOString();
-  try {
-    const list = await source.fetchLockers();
-    const now = finishedAt();
-    db.transaction((tx) => {
-      tx.delete(lockers).where(eq(lockers.source, source.id)).run();
-      for (let i = 0; i < list.length; i += 500) {
-        tx.insert(lockers)
-          .values(list.slice(i, i + 500).map((l) => ({ ...l, updatedAt: now })))
-          .run();
-      }
-      tx.insert(syncRuns)
-        .values({ source: source.id, finishedAt: now, count: list.length, error: null })
-        .onConflictDoUpdate({ target: syncRuns.source, set: { finishedAt: now, count: list.length, error: null } })
-        .run();
-    });
-    return list.length;
-  } catch (error) {
-    // Keep the previous catalogue; just record the failure.
-    const message = error instanceof Error ? error.message : String(error);
-    db.insert(syncRuns)
-      .values({ source: source.id, finishedAt: finishedAt(), count: 0, error: message })
-      .onConflictDoUpdate({ target: syncRuns.source, set: { finishedAt: finishedAt(), error: message } })
-      .run();
-    throw error;
-  }
-}
-
-export function lockersForCountry(countryCode: string): Locker[] {
-  return db.select().from(lockers).where(eq(lockers.countryCode, countryCode)).all();
-}
-
-export function findLocker(source: string, externalId: string): Locker | undefined {
+export async function findLocker(source: string, externalId: string): Promise<Locker | undefined> {
   return db
     .select()
     .from(lockers)
@@ -48,22 +14,82 @@ export function findLocker(source: string, externalId: string): Locker | undefin
     .get();
 }
 
-export function networkCounts(countries: string[]) {
+export async function networksInCountry(countryCode: string): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ network: lockers.network })
+    .from(lockers)
+    .where(eq(lockers.countryCode, countryCode))
+    .all();
+  return rows.map((r) => r.network).sort();
+}
+
+export async function networkCounts(countries: string[]) {
   if (countries.length === 0) return [];
   return db
     .select({ network: lockers.network, countryCode: lockers.countryCode, count: sql<number>`count(*)` })
     .from(lockers)
-    .where(sql`${lockers.countryCode} in ${countries}`)
+    .where(inArray(lockers.countryCode, countries))
     .groupBy(lockers.network, lockers.countryCode)
     .all();
 }
 
-export function lastSyncs() {
+/**
+ * Approximate a postcode's position as the centre of lockers sharing the longest
+ * postcode prefix (all networks; some carry non-postal zips).
+ */
+export async function locateZip(countryCode: string, zip: string | null | undefined): Promise<Point | null> {
+  const z = normalizeZip(zip);
+  for (let len = z.length; len >= 2; len--) {
+    const row = await db
+      .select({ lat: sql<number>`avg(${lockers.lat})`, lng: sql<number>`avg(${lockers.lng})`, n: sql<number>`count(*)` })
+      .from(lockers)
+      .where(and(eq(lockers.countryCode, countryCode), like(lockers.zip, `${z.slice(0, len)}%`)))
+      .get();
+    if (row && row.n > 0) return { lat: row.lat, lng: row.lng };
+  }
+  return null;
+}
+
+export interface SearchOptions {
+  country: string;
+  networks?: string[];
+  q?: string | null;
+  zip?: string | null;
+  near?: Point | null;
+  limit?: number;
+}
+
+/** Lockers matching every word of `q`, nearest to `near`/`zip` first, else alphabetical. */
+export async function searchLockers(options: SearchOptions): Promise<LockerResult[]> {
+  const from = options.near ?? (options.zip ? await locateZip(options.country, options.zip) : null);
+  const where: SQL[] = [eq(lockers.countryCode, options.country)];
+  if (options.networks?.length) where.push(inArray(lockers.network, options.networks));
+  for (const word of fold(options.q ?? "").split(/[\s,]+/).filter(Boolean)) {
+    where.push(like(lockers.search, `%${word}%`));
+  }
+
+  const query = db.select().from(lockers).where(and(...where));
+  const ordered = from
+    ? query.orderBy(
+        // Equirectangular approximation, good enough for ranking within a country.
+        sql`(${lockers.lat} - ${from.lat}) * (${lockers.lat} - ${from.lat}) + ((${lockers.lng} - ${from.lng}) * ${Math.cos((from.lat * Math.PI) / 180)}) * ((${lockers.lng} - ${from.lng}) * ${Math.cos((from.lat * Math.PI) / 180)})`,
+      )
+    : query.orderBy(asc(lockers.city), asc(lockers.name));
+  const rows = await ordered.limit(Math.min(50, options.limit ?? 30)).all();
+
+  return rows.map((l) => {
+    const result = toResult(l);
+    if (from) result.distanceKm = Math.round(distanceKm(from, l) * 10) / 10;
+    return result;
+  });
+}
+
+export async function lastSyncs() {
   return db.select().from(syncRuns).all();
 }
 
-export function getShopSettings(shop: string) {
-  const row = db.select().from(shopSettings).where(eq(shopSettings.shop, shop)).get();
+export async function getShopSettings(shop: string) {
+  const row = await db.select().from(shopSettings).where(eq(shopSettings.shop, shop)).get();
   return {
     settings: { ...defaultSettings(), ...((row?.settings as Partial<Settings>) ?? {}) },
     carrierServiceId: row?.carrierServiceId ?? null,
@@ -71,14 +97,14 @@ export function getShopSettings(shop: string) {
   };
 }
 
-export function saveShopSettings(
+export async function saveShopSettings(
   shop: string,
   values: { settings: Settings; carrierServiceId?: string | null; currency?: string | null },
 ) {
   const row = { shop, ...values, updatedAt: new Date().toISOString() };
-  db.insert(shopSettings).values(row).onConflictDoUpdate({ target: shopSettings.shop, set: row }).run();
+  await db.insert(shopSettings).values(row).onConflictDoUpdate({ target: shopSettings.shop, set: row }).run();
 }
 
-export function deleteShopSettings(shop: string) {
-  db.delete(shopSettings).where(eq(shopSettings.shop, shop)).run();
+export async function deleteShopSettings(shop: string) {
+  await db.delete(shopSettings).where(eq(shopSettings.shop, shop)).run();
 }
