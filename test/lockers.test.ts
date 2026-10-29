@@ -135,6 +135,11 @@ describe("searchLockers", () => {
     expect(searchLockers(list, { q: "savanoriu kaunas" }).map((l) => l.id)).toEqual(["alsendo:a"]);
     expect(searchLockers(list, { q: "nothing" })).toEqual([]);
   });
+  it("places the postcode using another set of lockers", () => {
+    const omnivaOnly = [list[0], locker({ externalId: "c", network: "omniva", zip: "99999", lat: 54.69, lng: 25.29, name: "Vilnius omniva", city: "Vilnius" })];
+    expect(searchLockers(omnivaOnly, { zip: "01105", locateIn: list }).map((l) => l.id)).toEqual(["alsendo:c", "alsendo:a"]);
+  });
+
   it("sorts by distance from a postcode", () => {
     expect(searchLockers(list, { zip: "01105" }).map((l) => l.id)).toEqual(["alsendo:b", "alsendo:a"]);
   });

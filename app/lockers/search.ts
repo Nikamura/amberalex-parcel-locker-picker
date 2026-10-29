@@ -21,11 +21,12 @@ export function toResult(l: Locker): LockerResult {
 
 /**
  * Lockers matching every word of `q` (name, address, city, postcode), nearest to
- * `zip` first when given, otherwise alphabetical.
+ * `zip` first when given, otherwise alphabetical. `locateIn` is the set used to
+ * place the postcode (pass the whole country: some networks have unreliable zips).
  */
 export function searchLockers(
   lockers: Locker[],
-  options: { q?: string | null; zip?: string | null; limit?: number },
+  options: { q?: string | null; zip?: string | null; limit?: number; locateIn?: Locker[] },
 ): LockerResult[] {
   const words = fold(options.q ?? "").split(/[\s,]+/).filter(Boolean);
   let matches = words.length
@@ -35,7 +36,7 @@ export function searchLockers(
       })
     : lockers;
 
-  const from = options.zip ? locateBuyer(lockers, { zip: options.zip }) : null;
+  const from = options.zip ? locateBuyer(options.locateIn ?? lockers, { zip: options.zip }) : null;
   if (from) {
     matches = [...matches].sort((a, b) => distanceKm(from, a) - distanceKm(from, b));
   } else {

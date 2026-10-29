@@ -17,12 +17,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return new Response(JSON.stringify({ error: "country required" }), { status: 400, headers });
   }
   const networks = (url.searchParams.get("network") ?? "").split(",").filter(Boolean);
-  const lockers = lockersForCountry(country).filter((l) => networks.length === 0 || networks.includes(l.network));
+  const all = lockersForCountry(country);
+  const lockers = all.filter((l) => networks.length === 0 || networks.includes(l.network));
   const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 30));
   const results = searchLockers(lockers, {
     q: url.searchParams.get("q"),
     zip: url.searchParams.get("zip"),
     limit,
+    locateIn: all,
   });
   return new Response(JSON.stringify({ lockers: results }), { headers });
 };

@@ -104,10 +104,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const info = describe(shop, order);
     if (!info) return cors(Response.json({ applicable: false }));
     const suggestions = info.paidNetwork
-      ? searchLockers(
-          lockersForCountry(info.country).filter((l) => info.response.networks.some((n) => n.network === l.network)),
-          { zip: info.response.zip, limit: 10 },
-        )
+      ? (() => {
+          const all = lockersForCountry(info.country);
+          return searchLockers(
+            all.filter((l) => l.network === (info.response.current?.network ?? info.paidNetwork)),
+            { zip: info.response.zip, limit: 10, locateIn: all },
+          );
+        })()
       : [];
     return cors(Response.json({ ...info.response, suggestions }));
   } catch (error) {
