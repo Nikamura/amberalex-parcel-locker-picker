@@ -148,8 +148,10 @@ export default function Index() {
                 same or lower price.
               </s-list-item>
               <s-list-item>
-                The order gets the locker in its attributes ("Parcel locker", "Parcel locker ID")
-                {settings.overwriteShippingAddress ? " and as its shipping address" : ""}, ready for Alsendo.
+                The order gets the locker as separate fields ("Parcel locker", "Parcel locker address", "Parcel locker ID")
+                {settings.overwriteShippingAddress
+                  ? " and as its shipping address, so Alsendo's importer sees it."
+                  : "; the buyer's own address is left untouched."}
               </s-list-item>
             </s-ordered-list>
           </s-section>

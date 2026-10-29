@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ATTR_LOCKER,
+  ATTR_LOCKER_ADDRESS,
   ATTR_LOCKER_ID,
   buildOrderInput,
   buildPendingOrderInput,
@@ -31,11 +32,12 @@ describe("shipping line choice", () => {
 });
 
 describe("order update", () => {
-  it("keeps other attributes, replaces locker ones and overwrites the address", () => {
+  it("keeps other attributes, stores the locker in separate fields, and can overwrite the address", () => {
     const input = buildOrderInput(order, locker, { ...settings, overwriteShippingAddress: true });
     expect(input.customAttributes).toEqual([
       { key: "gift", value: "yes" },
-      { key: ATTR_LOCKER, value: "LP Express paštomatas – Amatų skveras, Švitrigailos g. 13, Vilnius 03209" },
+      { key: ATTR_LOCKER, value: "LP Express paštomatas – Amatų skveras" },
+      { key: ATTR_LOCKER_ADDRESS, value: "Švitrigailos g. 13, 03209 Vilnius" },
       { key: ATTR_LOCKER_ID, value: "alsendo:53264" },
     ]);
     expect(input.shippingAddress).toMatchObject({

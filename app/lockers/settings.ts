@@ -61,7 +61,7 @@ export function defaultSettings(): Settings {
     combineNetworks: false,
     combinedLabel: "Parcel locker",
     freeShippingOver: null,
-    overwriteShippingAddress: true,
+    overwriteShippingAddress: false,
     testMarker: null,
   };
 }

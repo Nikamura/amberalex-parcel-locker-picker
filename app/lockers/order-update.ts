@@ -3,7 +3,9 @@ import { ANY_NETWORK, networkSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
 export const ATTR_LOCKER = "Parcel locker";
+export const ATTR_LOCKER_ADDRESS = "Parcel locker address";
 export const ATTR_LOCKER_ID = "Parcel locker ID";
+const LOCKER_ATTRIBUTES = new Set([ATTR_LOCKER, ATTR_LOCKER_ADDRESS, ATTR_LOCKER_ID]);
 export const PENDING_TAG = "locker-pending";
 
 /** The parts of an order needed to record a locker, from a webhook or the Admin API. */
@@ -43,7 +45,7 @@ export function choiceFromShippingCodes(codes: Array<string | null | undefined>)
 
 function attributesWith(order: OrderSnapshot, extra: Array<{ name: string; value: string }>) {
   return [
-    ...order.attributes.filter((a) => a.name !== ATTR_LOCKER && a.name !== ATTR_LOCKER_ID),
+    ...order.attributes.filter((a) => !LOCKER_ATTRIBUTES.has(a.name)),
     ...extra,
   ].map(({ name, value }) => ({ key: name, value }));
 }
@@ -58,7 +60,8 @@ export function buildOrderInput(order: OrderSnapshot, locker: Locker, settings: 
   const input: Record<string, unknown> = {
     id: order.id,
     customAttributes: attributesWith(order, [
-      { name: ATTR_LOCKER, value: `${label} – ${locker.name}, ${locker.address}, ${locker.city} ${locker.zip}` },
+      { name: ATTR_LOCKER, value: `${label} – ${locker.name}` },
+      { name: ATTR_LOCKER_ADDRESS, value: [locker.address, `${locker.zip} ${locker.city}`.trim()].filter(Boolean).join(", ") },
       { name: ATTR_LOCKER_ID, value: formatLockerId(locker) },
     ]),
     metafields: metafield({
