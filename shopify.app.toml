@@ -1,6 +1,7 @@
 # Production config for https://amberalex-parcel-locker-picker.karolis.workers.dev. Push with `pnpm dlx @shopify/cli app deploy`.
 client_id = "e94c913beb6f1e4efd371daf77090f13"
 name = "Amber Alex parcel lockers"
+handle = "amberalex-parcel-lockers"
 application_url = "https://amberalex-parcel-locker-picker.karolis.workers.dev"
 embedded = true
 
