@@ -2,8 +2,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate, unauthenticated } from "../shopify.server";
 import { choiceFromShippingCodes, type OrderSnapshot } from "../lockers/order-update";
 import { saveChosenLocker } from "../lockers/order-sync.server";
-import { findLocker, getShopSettings, lockersForCountry } from "../lockers/repo.server";
-import { searchLockers, toResult } from "../lockers/search";
+import { findLocker, getShopSettings, networksInCountry, searchLockers } from "../lockers/repo.server";
+import { toResult } from "../lockers/search";
 import { parseLockerId } from "../lockers/service-code";
 import { carrierLogoKey } from "../lockers/brands";
 import { ANY_NETWORK, combinedPrice, networkSettings, networkShort, type Settings } from "../lockers/settings";
@@ -66,9 +66,8 @@ async function loadOrder(shop: string, orderId: string, number: string) {
 }
 
 /** Locker types the buyer may switch to: any enabled type that costs the same or less than what they paid. */
-function allowedNetworks(settings: Settings, country: string, paidNetwork: string) {
-  const present = new Set(lockersForCountry(country).map((l) => l.network));
-  const enabled = [...present].filter((n) => networkSettings(settings, n).enabled);
+async function allowedNetworks(settings: Settings, country: string, paidNetwork: string) {
+  const enabled = (await networksInCountry(country)).filter((n) => networkSettings(settings, n).enabled);
   const paidPrice =
     paidNetwork === ANY_NETWORK ? combinedPrice(settings, enabled) : networkSettings(settings, paidNetwork).price;
   return enabled
@@ -77,15 +76,18 @@ function allowedNetworks(settings: Settings, country: string, paidNetwork: strin
     .map((network) => ({ network, label: networkSettings(settings, network).label, short: networkShort(network), carrierLogo: carrierLogoKey(network) }));
 }
 
-function describe(shop: string, order: AdminOrder) {
-  const { settings } = getShopSettings(shop);
+async function describe(shop: string, order: AdminOrder) {
+  const { settings } = await getShopSettings(shop);
   const choice = choiceFromShippingCodes([order.shippingLine?.code]);
   if (!choice) return null;
 
   const currentId = order.customAttributes.find((a) => a.key === "Parcel locker ID")?.value;
   const currentRef = parseLockerId(currentId ?? null);
-  const current = currentRef ? findLocker(currentRef.source, currentRef.externalId) : undefined;
-  const paidNetwork = choice.kind === "network" ? choice.network : current?.network ?? findLocker(choice.source, choice.externalId)?.network;
+  const current = currentRef ? await findLocker(currentRef.source, currentRef.externalId) : undefined;
+  const paidNetwork =
+    choice.kind === "network"
+      ? choice.network
+      : current?.network ?? (await findLocker(choice.source, choice.externalId))?.network;
   const country = order.shippingAddress?.countryCodeV2 ?? settings.countries[0];
   const ageDays = (Date.now() - Date.parse(order.createdAt)) / 86_400_000;
   const editable =
@@ -102,7 +104,7 @@ function describe(shop: string, order: AdminOrder) {
       country,
       zip: order.shippingAddress?.zip ?? null,
       current: current ? toResult(current) : null,
-      networks: paidNetwork ? allowedNetworks(settings, country, paidNetwork) : [],
+      networks: paidNetwork ? await allowedNetworks(settings, country, paidNetwork) : [],
       paidNetwork: paidNetwork ?? null,
     },
   };
@@ -114,21 +116,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   try {
     const { order } = await loadOrder(shop, url.searchParams.get("orderId") ?? "", url.searchParams.get("number") ?? "");
-    const info = describe(shop, order);
+    const info = await describe(shop, order);
     if (!info) return cors(Response.json({ applicable: false }));
-    const suggestions = info.paidNetwork
-      ? (() => {
-          const all = lockersForCountry(info.country);
-          return searchLockers(
-            all.filter(
-              (l) =>
-                l.network ===
-                (info.response.current?.network ??
-                  (info.paidNetwork === ANY_NETWORK ? info.response.networks[0]?.network : info.paidNetwork)),
-            ),
-            { zip: info.response.zip, limit: 10, locateIn: all },
-          );
-        })()
+    const suggestNetwork =
+      info.response.current?.network ??
+      (info.paidNetwork === ANY_NETWORK ? info.response.networks[0]?.network : info.paidNetwork);
+    const suggestions = suggestNetwork
+      ? await searchLockers({ country: info.country, networks: [suggestNetwork], zip: info.response.zip, limit: 10 })
       : [];
     return cors(Response.json({ ...info.response, suggestions }));
   } catch (error) {
@@ -144,12 +138,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const body = (await request.json()) as { orderId?: string; number?: string; lockerId?: string };
     const { admin, order } = await loadOrder(shop, body.orderId ?? "", body.number ?? "");
-    const info = describe(shop, order);
+    const info = await describe(shop, order);
     if (!info) throw new HttpError(400, "order has no parcel locker delivery");
     if (!info.response.editable) throw new HttpError(409, "order can no longer be changed");
 
     const ref = parseLockerId(body.lockerId ?? null);
-    const locker = ref ? findLocker(ref.source, ref.externalId) : undefined;
+    const locker = ref ? await findLocker(ref.source, ref.externalId) : undefined;
     if (!locker || locker.countryCode !== info.country) throw new HttpError(400, "unknown locker");
     if (!info.response.networks.some((n) => n.network === locker.network)) throw new HttpError(400, "locker type not allowed");
 

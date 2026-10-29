@@ -1,8 +1,9 @@
 packages:
   - "extensions/*"
 allowBuilds:
-  better-sqlite3: true
   esbuild: true
+  workerd: true
+  sharp: false
   "@parcel/watcher": false
   unrs-resolver: false
 overrides:

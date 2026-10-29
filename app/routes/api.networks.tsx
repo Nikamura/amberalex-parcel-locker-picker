@@ -16,10 +16,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!/^[a-z0-9-]+\.myshopify\.com$/.test(shop)) {
     return new Response(JSON.stringify({ error: "shop required" }), { status: 400, headers });
   }
-  const { settings, currency } = getShopSettings(shop);
+  const { settings, currency } = await getShopSettings(shop);
   if (!settings.enabled) return new Response(JSON.stringify({ enabled: false }), { headers });
 
-  const present = new Set(networkCounts(settings.countries).map((c) => c.network));
+  const present = new Set((await networkCounts(settings.countries)).map((c) => c.network));
   const networks = [...present]
     .filter((n) => networkSettings(settings, n).enabled)
     .sort()

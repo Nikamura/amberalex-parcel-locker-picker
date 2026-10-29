@@ -15,14 +15,14 @@ import { networkSettings, type Settings } from "../lockers/settings";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const { settings, currency, carrierServiceId } = getShopSettings(session.shop);
-  const counts = networkCounts(settings.countries);
+  const { settings, currency, carrierServiceId } = await getShopSettings(session.shop);
+  const counts = await networkCounts(settings.countries);
   const networks = [...new Set(counts.map((c) => c.network))].sort().map((network) => ({
     network,
     lockers: counts.filter((c) => c.network === network).reduce((s, c) => s + c.count, 0),
     ...networkSettings(settings, network),
   }));
-  return { settings, currency, carrierServiceId, networks, syncs: lastSyncs() };
+  return { settings, currency, carrierServiceId, networks, syncs: await lastSyncs() };
 };
 
 const num = (v: FormDataEntryValue | null) => {
@@ -33,7 +33,7 @@ const num = (v: FormDataEntryValue | null) => {
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const form = await request.formData();
-  const previous = getShopSettings(session.shop);
+  const previous = await getShopSettings(session.shop);
 
   const networks: Settings["networks"] = {};
   for (const network of form.getAll("network").map(String)) {
@@ -65,10 +65,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       previous.carrierServiceId,
       settings.enabled,
     );
-    saveShopSettings(session.shop, { settings, carrierServiceId, currency });
+    await saveShopSettings(session.shop, { settings, carrierServiceId, currency });
     return { ok: true as const };
   } catch (error) {
-    saveShopSettings(session.shop, { settings, carrierServiceId: previous.carrierServiceId, currency: previous.currency });
+    await saveShopSettings(session.shop, { settings, carrierServiceId: previous.carrierServiceId, currency: previous.currency });
     return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
   }
 };

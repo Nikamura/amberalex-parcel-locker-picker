@@ -8,6 +8,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic } = await authenticate.webhook(request);
   console.log(`Received ${topic} webhook for ${shop}`);
   // Settings are kept until shop/redact so a reinstall restores them.
-  db.delete(sessionTable).where(eq(sessionTable.shop, shop)).run();
+  await db.delete(sessionTable).where(eq(sessionTable.shop, shop)).run();
   return new Response();
 };

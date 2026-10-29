@@ -10,14 +10,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const choice = choiceFromShippingCodes((order.shipping_lines ?? []).map((l) => l.code));
   if (!choice || !admin) return new Response();
 
-  const { settings } = getShopSettings(shop);
+  const { settings } = await getShopSettings(shop);
   const snapshot = snapshotFromWebhook(order);
   try {
     if (choice.kind === "network") {
       await markLockerPending(admin, snapshot, choice.network, settings);
       return new Response();
     }
-    const locker = findLocker(choice.source, choice.externalId);
+    const locker = await findLocker(choice.source, choice.externalId);
     if (!locker) {
       console.error(`[orders] ${shop}: locker ${choice.source}:${choice.externalId} not in catalogue`);
       return new Response();

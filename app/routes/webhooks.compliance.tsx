@@ -6,6 +6,6 @@ import { deleteShopSettings } from "../lockers/repo.server";
 // live on the shop's own orders. shop/redact removes the shop's settings.
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic } = await authenticate.webhook(request);
-  if (topic === "SHOP_REDACT") deleteShopSettings(shop);
+  if (topic === "SHOP_REDACT") await deleteShopSettings(shop);
   return new Response();
 };

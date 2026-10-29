@@ -31,3 +31,6 @@ yarn.lock
 /data
 /public/plp-cart.js
 /public/plp-cart.css
+
+.wrangler
+.dev.vars

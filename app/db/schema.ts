@@ -44,11 +44,14 @@ export const lockers = sqliteTable(
     lat: real("lat").notNull(),
     lng: real("lng").notNull(),
     comment: text("comment"),
+    /** Lower-cased, diacritic-free name/address/city/zip for LIKE search. */
+    search: text("search").notNull().default(""),
     updatedAt: text("updated_at").notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.source, t.externalId] }),
     index("lockers_country_network").on(t.countryCode, t.network),
+    index("lockers_country_zip").on(t.countryCode, t.zip),
   ],
 );
 

@@ -1,5 +1,4 @@
 import { carrierLogoKey, detectBrand } from "./brands";
-import { distanceKm, locateBuyer, type Point } from "./nearest";
 import { formatLockerId } from "./service-code";
 import type { Locker } from "./types";
 
@@ -24,6 +23,11 @@ export function fold(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+/** Text stored in lockers.search for word matching. */
+export function searchText(l: Pick<Locker, "name" | "address" | "city" | "zip">): string {
+  return fold(`${l.name} ${l.address} ${l.city} ${l.zip}`);
+}
+
 export function toResult(l: Locker): LockerResult {
   const result: LockerResult = {
     id: formatLockerId(l),
@@ -40,35 +44,4 @@ export function toResult(l: Locker): LockerResult {
   const carrierLogo = carrierLogoKey(l.network);
   if (carrierLogo) result.carrierLogo = carrierLogo;
   return result;
-}
-
-/**
- * Lockers matching every word of `q` (name, address, city, postcode), nearest to
- * `zip` first when given, otherwise alphabetical. `locateIn` is the set used to
- * place the postcode (pass the whole country: some networks have unreliable zips).
- */
-export function searchLockers(
-  lockers: Locker[],
-  options: { q?: string | null; zip?: string | null; near?: Point | null; limit?: number; locateIn?: Locker[] },
-): LockerResult[] {
-  const words = fold(options.q ?? "").split(/[\s,]+/).filter(Boolean);
-  let matches = words.length
-    ? lockers.filter((l) => {
-        const hay = fold(`${l.name} ${l.address} ${l.city} ${l.zip}`);
-        return words.every((w) => hay.includes(w));
-      })
-    : lockers;
-
-  const from =
-    options.near ?? (options.zip ? locateBuyer(options.locateIn ?? lockers, { zip: options.zip }) : null);
-  if (from) {
-    matches = [...matches].sort((a, b) => distanceKm(from, a) - distanceKm(from, b));
-  } else {
-    matches = [...matches].sort((a, b) => a.city.localeCompare(b.city, "lt") || a.name.localeCompare(b.name, "lt"));
-  }
-  return matches.slice(0, options.limit ?? 30).map((l) => {
-    const result = toResult(l);
-    if (from) result.distanceKm = Math.round(distanceKm(from, l) * 10) / 10;
-    return result;
-  });
 }

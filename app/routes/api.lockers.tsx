@@ -1,6 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { lockersForCountry } from "../lockers/repo.server";
-import { searchLockers } from "../lockers/search";
+import { searchLockers } from "../lockers/repo.server";
 
 const headers = {
   "Content-Type": "application/json",
@@ -17,18 +16,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (!/^[A-Z]{2}$/.test(country)) {
     return new Response(JSON.stringify({ error: "country required" }), { status: 400, headers });
   }
-  const networks = (url.searchParams.get("network") ?? "").split(",").filter(Boolean);
-  const all = lockersForCountry(country);
-  const lockers = all.filter((l) => networks.length === 0 || networks.includes(l.network));
-  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 30));
   const [lat, lng] = (url.searchParams.get("near") ?? "").split(",").map(Number);
-  const near = Number.isFinite(lat) && Number.isFinite(lng) && url.searchParams.has("near") ? { lat, lng } : null;
-  const results = searchLockers(lockers, {
-    near,
+  const near = url.searchParams.has("near") && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  const results = await searchLockers({
+    country,
+    networks: (url.searchParams.get("network") ?? "").split(",").filter(Boolean),
     q: url.searchParams.get("q"),
     zip: url.searchParams.get("zip"),
-    limit,
-    locateIn: all,
+    near,
+    limit: Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 30)),
   });
   return new Response(JSON.stringify({ lockers: results }), { headers });
 };

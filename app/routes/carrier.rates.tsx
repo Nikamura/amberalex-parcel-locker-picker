@@ -1,7 +1,8 @@
 import type { ActionFunctionArgs } from "react-router";
 import { verifyShopifyHmac } from "../carrier/hmac";
-import { buildRates, type RateRequest } from "../lockers/rates";
-import { getShopSettings, lockersForCountry } from "../lockers/repo.server";
+import { buildRates, cartLockerId, type RateRequest } from "../lockers/rates";
+import { findLocker, getShopSettings, networksInCountry } from "../lockers/repo.server";
+import { parseLockerId } from "../lockers/service-code";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -18,10 +19,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const body = JSON.parse(raw) as RateRequest;
-
-    const { settings, currency } = getShopSettings(shop);
-    const lockers = lockersForCountry(body.rate.destination.country);
-    return json({ rates: buildRates(body, settings, lockers, currency ?? body.rate.currency) });
+    const country = body.rate.destination.country;
+    const ref = parseLockerId(cartLockerId(body.rate.items));
+    const [{ settings, currency }, networks, chosen] = await Promise.all([
+      getShopSettings(shop),
+      networksInCountry(country),
+      ref ? findLocker(ref.source, ref.externalId) : Promise.resolve(undefined),
+    ]);
+    return json({ rates: buildRates(body, settings, { networks, chosen }, currency ?? body.rate.currency) });
   } catch (error) {
     console.error("[carrier] rate request failed", error);
     return json({ rates: [] });
