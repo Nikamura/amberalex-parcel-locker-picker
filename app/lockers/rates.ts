@@ -10,6 +10,10 @@ export interface RateRequest {
       country: string;
       postal_code?: string | null;
       city?: string | null;
+      name?: string | null;
+      company_name?: string | null;
+      address1?: string | null;
+      address2?: string | null;
     };
     items: Array<{ price: number; quantity: number; requires_shipping?: boolean }>;
     currency: string;
@@ -24,6 +28,13 @@ export interface Rate {
   description: string;
 }
 
+function matchesTestMarker(destination: RateRequest["rate"]["destination"], marker: string) {
+  const needle = marker.trim().toLowerCase();
+  return [destination.name, destination.company_name, destination.address1, destination.address2].some((v) =>
+    v?.toLowerCase().includes(needle),
+  );
+}
+
 /** `lockers` must already be limited to the destination country. */
 export function buildRates(
   request: RateRequest,
@@ -33,6 +44,7 @@ export function buildRates(
 ): Rate[] {
   const { destination, items } = request.rate;
   if (!settings.enabled || !settings.countries.includes(destination.country)) return [];
+  if (settings.testMarker && !matchesTestMarker(destination, settings.testMarker)) return [];
 
   const enabled = lockers.filter((l) => networkSettings(settings, l.network).enabled);
   const from = locateBuyer(lockers, { zip: destination.postal_code, city: destination.city });

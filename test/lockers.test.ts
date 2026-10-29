@@ -99,6 +99,13 @@ describe("buildRates", () => {
     expect(buildRates(request(), settings({ enabled: false }), lockers, "EUR")).toEqual([]);
   });
 
+  it("only answers addresses with the test marker in test mode", () => {
+    const test = settings({ testMarker: "PLPTEST" });
+    expect(buildRates(request(), test, lockers, "EUR")).toEqual([]);
+    expect(buildRates(request({ address1: "Gatvė 1 plptest" }), test, lockers, "EUR").length).toBeGreaterThan(0);
+    expect(buildRates(request({ name: "Ona PLPTEST" }), test, lockers, "EUR").length).toBeGreaterThan(0);
+  });
+
   it("makes lockers free above the threshold", () => {
     const rates = buildRates(request({}, 10_000), settings({ freeShippingOver: 100 }), lockers, "EUR");
     expect(rates.every((r) => r.total_price === "0")).toBe(true);

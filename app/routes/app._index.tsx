@@ -54,6 +54,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     perNetwork: Math.min(5, Math.max(1, Math.round(num(form.get("perNetwork"))) || 2)),
     freeShippingOver: freeOver === "" ? null : Math.max(0, num(freeOver)),
     overwriteShippingAddress: form.get("overwriteShippingAddress") === "on",
+    testMarker: String(form.get("testMarker") ?? "").trim() || null,
   };
 
   try {
@@ -115,6 +116,12 @@ export default function Index() {
               label={`Free locker delivery from order subtotal${currency ? ` (${currency})` : ""}`}
               details="Leave empty to always charge."
               defaultValue={settings.freeShippingOver === null ? "" : String(settings.freeShippingOver)}
+            />
+            <s-text-field
+              name="testMarker"
+              label="Test mode marker"
+              details="If set, lockers only show when the shipping name or address contains this text (e.g. PLPTEST). Clear it to go live."
+              defaultValue={settings.testMarker ?? ""}
             />
             <s-checkbox
               name="overwriteShippingAddress"

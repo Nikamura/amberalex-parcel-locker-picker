@@ -16,6 +16,11 @@ export interface Settings {
   freeShippingOver: number | null;
   /** Replace the order's shipping address with the locker address. */
   overwriteShippingAddress: boolean;
+  /**
+   * When set, lockers are offered only if the shipping name or address contains
+   * this text. Lets a live store test checkout without buyers seeing lockers.
+   */
+  testMarker: string | null;
 }
 
 export const NETWORK_LABELS: Record<string, string> = {
@@ -35,6 +40,7 @@ export function defaultSettings(): Settings {
     perNetwork: 2,
     freeShippingOver: null,
     overwriteShippingAddress: true,
+    testMarker: null,
   };
 }
 
