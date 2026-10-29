@@ -38,6 +38,16 @@ interface AdminOrder {
   customAttributes: Array<{ key: string; value: string | null }>;
 }
 
+/** Session token `dest` may be a bare host or a URL. */
+function shopFromDest(dest: string) {
+  return dest.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+}
+
+/** The thank-you page exposes OrderIdentity gids; the Admin API wants Order gids. */
+function toAdminOrderId(id: string) {
+  return id.replace(/^gid:\/\/shopify\/OrderIdentity\//, "gid://shopify/Order/");
+}
+
 class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -46,7 +56,7 @@ class HttpError extends Error {
 
 async function loadOrder(shop: string, orderId: string, number: string) {
   const { admin } = await unauthenticated.admin(shop);
-  const res = await admin.graphql(ORDER_QUERY, { variables: { id: orderId } });
+  const res = await admin.graphql(ORDER_QUERY, { variables: { id: toAdminOrderId(orderId) } });
   const body = await res.json();
   const order = body.data?.order as AdminOrder | null;
   // Same answer for "no such order" and "wrong number" so ids can't be probed.
@@ -97,7 +107,7 @@ function describe(shop: string, order: AdminOrder) {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { sessionToken, cors } = await authenticate.public.checkout(request);
-  const shop = new URL(sessionToken.dest).hostname;
+  const shop = shopFromDest(sessionToken.dest);
   const url = new URL(request.url);
   try {
     const { order } = await loadOrder(shop, url.searchParams.get("orderId") ?? "", url.searchParams.get("number") ?? "");
@@ -115,13 +125,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return cors(Response.json({ ...info.response, suggestions }));
   } catch (error) {
     if (error instanceof HttpError) return cors(Response.json({ error: error.message }, { status: error.status }));
-    throw error;
+    console.error("[order-locker] load failed", error);
+    return cors(Response.json({ error: "could not load" }, { status: 500 }));
   }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { sessionToken, cors } = await authenticate.public.checkout(request);
-  const shop = new URL(sessionToken.dest).hostname;
+  const shop = shopFromDest(sessionToken.dest);
   try {
     const body = (await request.json()) as { orderId?: string; number?: string; lockerId?: string };
     const { admin, order } = await loadOrder(shop, body.orderId ?? "", body.number ?? "");
