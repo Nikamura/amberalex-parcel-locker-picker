@@ -1,16 +1,13 @@
 {
-  "heading": "Paštomatas",
+  "heading": "Jūsų paštomatas",
   "chooseHeading": "Pasirinkite paštomatą",
   "chooseIntro": "Pasirinkite paštomatą, į kurį pristatysime jūsų užsakymą.",
-  "yourLocker": "Jūsų užsakymas bus pristatytas į:",
   "change": "Keisti",
-  "type": "Paštomato tipas",
   "search": "Ieškokite pagal miestą, gatvę ar paštomato pavadinimą",
   "noResults": "Paštomatų nerasta. Pabandykite kitaip.",
-  "save": "Išsaugoti paštomatą",
   "saved": "Išsaugota. Užsakymą pristatysime į šį paštomatą.",
   "error": "Nepavyko išsaugoti paštomato. Bandykite dar kartą arba susisiekite su mumis.",
   "locked": "Jūsų užsakymas jau ruošiamas, todėl paštomato čia pakeisti nebegalima. Susisiekite su mumis.",
-  "loading": "Įkeliamas paštomatas…",
-  "loadError": "Nepavyko įkelti paštomato pasirinkimo. Susisiekite su mumis."
+  "loadError": "Nepavyko įkelti paštomato pasirinkimo. Susisiekite su mumis.",
+  "choose": "Pasirinkti paštomatą"
 }

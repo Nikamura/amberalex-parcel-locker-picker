@@ -3,13 +3,14 @@ import {render} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 
 const APP_URL = 'https://lockers.cn.lt';
+const MODAL_ID = 'parcel-locker-modal';
 
 export default async () => {
   render(<Extension />, document.body);
 };
 
-function t(key) {
-  return shopify.i18n.translate(key);
+function t(key, values) {
+  return shopify.i18n.translate(key, values);
 }
 
 async function api(path, init = {}) {
@@ -26,6 +27,11 @@ function lockerLine(locker) {
   return [locker.address, locker.city].filter(Boolean).join(', ');
 }
 
+function distance(km) {
+  if (km == null) return '';
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`;
+}
+
 function Extension() {
   const confirmation = shopify.orderConfirmation.value;
   const orderId = confirmation?.order?.id;
@@ -33,13 +39,13 @@ function Extension() {
 
   const [info, setInfo] = useState(null);
   const [loadState, setLoadState] = useState('loading');
-  const [editing, setEditing] = useState(false);
   const [network, setNetwork] = useState('');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [selected, setSelected] = useState('');
+  const [savingId, setSavingId] = useState('');
   const [status, setStatus] = useState('idle');
   const searchTimer = useRef(null);
+  const modal = useRef(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -52,7 +58,6 @@ function Extension() {
         const paid = data.networks.some((n) => n.network === data.paidNetwork) ? data.paidNetwork : null;
         setNetwork(data.current?.network ?? paid ?? data.networks[0]?.network ?? '');
         setResults(data.suggestions ?? []);
-        setEditing(!data.current);
       })
       .catch((error) => {
         console.error('[parcel-locker] load failed', error);
@@ -61,119 +66,129 @@ function Extension() {
   }, [orderId, number]);
 
   useEffect(() => {
-    if (!info || !editing || !network) return;
+    if (!info || !network) return;
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
-      const params = new URLSearchParams({country: info.country, network, limit: '20'});
+      const params = new URLSearchParams({country: info.country, network, limit: '25'});
       if (query.trim()) params.set('q', query.trim());
-      else if (info.zip) params.set('zip', info.zip);
+      if (info.zip) params.set('zip', info.zip);
       fetch(`${APP_URL}/api/lockers?${params}`)
         .then((r) => r.json())
         .then((data) => setResults(data.lockers ?? []))
         .catch(() => setResults([]));
-    }, 300);
-  }, [info, editing, network, query]);
+    }, 250);
+  }, [info, network, query]);
 
   if (!info) {
     if (loadState === 'error') return <s-banner tone="warning">{t('loadError')}</s-banner>;
-    if (loadState === 'loading') return <s-text>{t('loading')}</s-text>;
     return null;
   }
 
-  if (!editing && info.current) {
-    return (
-      <s-section heading={t('heading')}>
-        <s-stack gap="base">
-          {status === 'saved' && <s-banner tone="success">{t('saved')}</s-banner>}
-          <s-text>{t('yourLocker')}</s-text>
-          <s-text type="strong">{info.current.name}</s-text>
-          <s-text>{lockerLine(info.current)}</s-text>
-          {info.editable && (
-            <s-button variant="secondary" onClick={() => setEditing(true)}>
-              {t('change')}
-            </s-button>
-          )}
-        </s-stack>
-      </s-section>
-    );
-  }
+  const shortName = (key) => info.networks.find((n) => n.network === key)?.short ?? key;
 
-  if (!info.editable) {
-    return <s-banner tone="warning" heading={t('chooseHeading')}>{t('locked')}</s-banner>;
-  }
-
-  async function save() {
-    if (!selected) return;
-    setStatus('saving');
+  async function choose(locker) {
+    setSavingId(locker.id);
     try {
       const data = await api('/api/order-locker', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({orderId, number, lockerId: selected}),
+        body: JSON.stringify({orderId, number, lockerId: locker.id}),
       });
       setInfo({...info, current: data.current});
-      setEditing(false);
       setStatus('saved');
+      modal.current?.hideOverlay();
     } catch {
       setStatus('error');
+    } finally {
+      setSavingId('');
     }
   }
 
-  return (
-    <s-section heading={t('chooseHeading')}>
-      <s-stack gap="base">
-        <s-text>{t('chooseIntro')}</s-text>
-        {info.networks.length > 1 && (
-          <s-select
-            label={t('type')}
-            value={network}
-            onChange={(e) => {
-              setNetwork(/** @type {any} */ (e.currentTarget).value);
-              setSelected('');
-            }}
-          >
-            {info.networks.map((n) => (
-              <s-option key={n.network} value={n.network}>
-                {n.label}
-              </s-option>
-            ))}
-          </s-select>
-        )}
-        <s-text-field
-          label={t('search')}
-          value={query}
-          onInput={(e) => setQuery(/** @type {any} */ (e.currentTarget).value)}
-        />
-        {results.length === 0 ? (
-          <s-text>{t('noResults')}</s-text>
-        ) : (
-          <s-scroll-box maxBlockSize="320px">
-            <s-choice-list
-              label={t('heading')}
-              labelAccessibilityVisibility="exclusive"
-              name="locker"
-              values={selected ? [selected] : []}
-              onChange={(e) => setSelected(/** @type {any} */ (e.currentTarget).values[0] ?? '')}
-            >
-              {results.map((l) => (
-                <s-choice key={l.id} value={l.id}>
-                  {l.name}
-                  <s-text slot="details">{lockerLine(l)}</s-text>
-                </s-choice>
-              ))}
-            </s-choice-list>
-          </s-scroll-box>
-        )}
-        {status === 'error' && <s-banner tone="critical">{t('error')}</s-banner>}
-        <s-button
-          variant="primary"
-          disabled={!selected}
-          loading={status === 'saving'}
-          onClick={save}
-        >
-          {t('save')}
-        </s-button>
+  const summary = info.current ? (
+    <s-stack gap="small-200">
+      <s-stack direction="inline" gap="small-200" alignItems="center">
+        <s-badge>{shortName(info.current.network)}</s-badge>
+        <s-text type="strong">{info.current.name}</s-text>
       </s-stack>
-    </s-section>
+      <s-text color="subdued">{lockerLine(info.current)}</s-text>
+    </s-stack>
+  ) : (
+    <s-text>{t('chooseIntro')}</s-text>
+  );
+
+  return (
+    <s-box padding="base" border="base" borderRadius="base">
+      <s-stack gap="base">
+        <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
+          <s-heading>{info.current ? t('heading') : t('chooseHeading')}</s-heading>
+          {info.editable && (
+            <s-button
+              variant={info.current ? 'secondary' : 'primary'}
+              commandFor={MODAL_ID}
+              command="--show"
+            >
+              {info.current ? t('change') : t('choose')}
+            </s-button>
+          )}
+        </s-stack>
+        {status === 'saved' && <s-banner tone="success">{t('saved')}</s-banner>}
+        {summary}
+        {!info.editable && !info.current && <s-text color="subdued">{t('locked')}</s-text>}
+      </s-stack>
+
+      <s-modal id={MODAL_ID} ref={modal} heading={t('chooseHeading')} size="large">
+        <s-stack gap="base">
+          {info.networks.length > 1 && (
+            <s-stack direction="inline" gap="small-200">
+              {info.networks.map((n) => (
+                <s-press-button
+                  key={n.network}
+                  pressed={n.network === network}
+                  onClick={() => setNetwork(n.network)}
+                >
+                  {n.short}
+                </s-press-button>
+              ))}
+            </s-stack>
+          )}
+          <s-text-field
+            label={t('search')}
+            icon="search"
+            value={query}
+            onInput={(e) => setQuery(/** @type {any} */ (e.currentTarget).value)}
+          />
+          {status === 'error' && <s-banner tone="critical">{t('error')}</s-banner>}
+          {results.length === 0 ? (
+            <s-text color="subdued">{t('noResults')}</s-text>
+          ) : (
+            <s-scroll-box maxBlockSize="420px">
+              <s-stack gap="small-200">
+                {results.map((l) => (
+                  <s-clickable
+                    key={l.id}
+                    padding="base"
+                    border="base"
+                    borderRadius="base"
+                    disabled={Boolean(savingId)}
+                    onClick={() => choose(l)}
+                  >
+                    <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
+                      <s-stack gap="small-300">
+                        <s-text type="strong">{l.name}</s-text>
+                        <s-text color="subdued">{lockerLine(l)}</s-text>
+                      </s-stack>
+                      <s-stack direction="inline" gap="small-200" alignItems="center">
+                        {l.distanceKm != null && <s-text color="subdued">{distance(l.distanceKm)}</s-text>}
+                        {savingId === l.id ? <s-spinner size="small" /> : <s-badge>{shortName(l.network)}</s-badge>}
+                      </s-stack>
+                    </s-stack>
+                  </s-clickable>
+                ))}
+              </s-stack>
+            </s-scroll-box>
+          )}
+        </s-stack>
+      </s-modal>
+    </s-box>
   );
 }

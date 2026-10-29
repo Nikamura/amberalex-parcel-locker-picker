@@ -38,6 +38,20 @@ export const NETWORK_LABELS: Record<string, string> = {
   gls: "SmartPosti parcel locker",
 };
 
+/** Short carrier names for badges. */
+export const NETWORK_SHORT: Record<string, string> = {
+  omniva: "Omniva",
+  lp_post: "LP Express",
+  LpPost: "LP Express",
+  dpd: "DPD",
+  venipak: "Venipak",
+  gls: "SmartPosti",
+};
+
+export function networkShort(network: string) {
+  return NETWORK_SHORT[network] ?? network;
+}
+
 export function defaultSettings(): Settings {
   return {
     enabled: false,

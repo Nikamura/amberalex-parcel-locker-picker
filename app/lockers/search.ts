@@ -9,6 +9,8 @@ export interface LockerResult {
   address: string;
   city: string;
   zip: string;
+  /** Kilometres from the searched postcode, when one was given. */
+  distanceKm?: number;
 }
 
 export function fold(text: string): string {
@@ -42,5 +44,9 @@ export function searchLockers(
   } else {
     matches = [...matches].sort((a, b) => a.city.localeCompare(b.city, "lt") || a.name.localeCompare(b.name, "lt"));
   }
-  return matches.slice(0, options.limit ?? 30).map(toResult);
+  return matches.slice(0, options.limit ?? 30).map((l) => {
+    const result = toResult(l);
+    if (from) result.distanceKm = Math.round(distanceKm(from, l) * 10) / 10;
+    return result;
+  });
 }
