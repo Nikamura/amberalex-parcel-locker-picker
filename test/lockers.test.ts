@@ -97,12 +97,12 @@ describe("buildRates", () => {
     ]);
   });
 
-  it("puts the locker picked on the cart page first", () => {
+  it("offers only the locker picked on the cart page", () => {
     const req = request();
     req.rate.items[0].properties = { _plp_locker: "alsendo:2" };
     const rates = buildRates(req, settings(), lockers, "EUR");
     expect(rates[0]).toMatchObject({ service_name: "Omniva – Locker 2", service_code: "PLP1:alsendo:2", total_price: "299" });
-    expect(rates).toHaveLength(3);
+    expect(rates).toHaveLength(1);
   });
 
   it("ignores a cart locker that is unknown or of a disabled network", () => {

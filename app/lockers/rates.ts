@@ -86,6 +86,8 @@ export function buildRates(
       currency,
       description: [chosen.address, chosen.city].filter(Boolean).join(", "),
     });
+    // Only the picked locker: it is then the cheapest option, so checkout selects it.
+    return rates;
   }
 
   if (settings.combineNetworks && networks.length > 0) {
