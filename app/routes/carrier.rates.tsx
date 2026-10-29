@@ -18,9 +18,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const body = JSON.parse(raw) as RateRequest;
-    // TEMP: check that cart line properties reach the rate request.
-    const plpProps = body.rate.items.map((i) => Object.keys(i.properties ?? {}).filter((k) => k.startsWith("_plp")));
-    if (plpProps.some((k) => k.length)) console.log("[carrier] line properties", JSON.stringify(body.rate.items.map((i) => i.properties)));
+
     const { settings, currency } = getShopSettings(shop);
     const lockers = lockersForCountry(body.rate.destination.country);
     return json({ rates: buildRates(body, settings, lockers, currency ?? body.rate.currency) });

@@ -1,7 +1,9 @@
-import { locateBuyer, nearestPerNetwork } from "./nearest";
-import { encodeServiceCode } from "./service-code";
+import { encodeNetworkCode, encodeServiceCode, parseLockerId } from "./service-code";
 import { networkSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
+
+/** Hidden cart line property set by the cart-page picker. */
+export const CART_LOCKER_PROPERTY = "_plp_locker";
 
 // Shapes of Shopify's carrier service callback.
 export interface RateRequest {
@@ -40,7 +42,18 @@ function matchesTestMarker(destination: RateRequest["rate"]["destination"], mark
   );
 }
 
-/** `lockers` must already be limited to the destination country. */
+export function cartLockerId(items: RateRequest["rate"]["items"]): string | null {
+  for (const item of items) {
+    const id = item.properties?.[CART_LOCKER_PROPERTY];
+    if (id) return id;
+  }
+  return null;
+}
+
+/**
+ * One rate per enabled locker type (the locker is picked after payment), plus the
+ * locker chosen on the cart page, if any. `lockers` must be the destination country's.
+ */
 export function buildRates(
   request: RateRequest,
   settings: Settings,
@@ -51,24 +64,37 @@ export function buildRates(
   if (!settings.enabled || !settings.countries.includes(destination.country)) return [];
   if (settings.testMarker && !matchesTestMarker(destination, settings.testMarker)) return [];
 
-  const enabled = lockers.filter((l) => networkSettings(settings, l.network).enabled);
-  const from = locateBuyer(lockers, { zip: destination.postal_code, city: destination.city });
-  if (!from || enabled.length === 0) return [];
-
   const subtotalMinor = items
     .filter((i) => i.requires_shipping !== false)
     .reduce((sum, i) => sum + i.price * i.quantity, 0);
   const free =
     settings.freeShippingOver !== null && subtotalMinor >= Math.round(settings.freeShippingOver * 100);
+  const price = (network: string) => String(free ? 0 : Math.round(networkSettings(settings, network).price * 100));
 
-  return nearestPerNetwork(enabled, from, Math.max(1, settings.perNetwork)).map((l) => {
-    const network = networkSettings(settings, l.network);
-    return {
-      service_name: `${network.label} – ${l.name}`,
-      service_code: encodeServiceCode(l),
-      total_price: String(free ? 0 : Math.round(network.price * 100)),
+  const available = new Set(lockers.map((l) => l.network));
+  const networks = [...available].filter((n) => networkSettings(settings, n).enabled).sort();
+  const rates: Rate[] = [];
+
+  const ref = parseLockerId(cartLockerId(items));
+  const chosen = ref && lockers.find((l) => l.source === ref.source && l.externalId === ref.externalId);
+  if (chosen && networks.includes(chosen.network)) {
+    rates.push({
+      service_name: `${networkSettings(settings, chosen.network).label} – ${chosen.name}`,
+      service_code: encodeServiceCode(chosen),
+      total_price: price(chosen.network),
       currency,
-      description: `${l.address}, ${l.city}`,
-    };
-  });
+      description: [chosen.address, chosen.city].filter(Boolean).join(", "),
+    });
+  }
+
+  for (const network of networks) {
+    rates.push({
+      service_name: networkSettings(settings, network).label,
+      service_code: encodeNetworkCode(network),
+      total_price: price(network),
+      currency,
+      description: settings.chooseLaterText,
+    });
+  }
+  return rates;
 }

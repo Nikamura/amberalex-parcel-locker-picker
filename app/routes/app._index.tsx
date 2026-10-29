@@ -51,7 +51,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       .map((c) => c.trim().toUpperCase())
       .filter((c) => /^[A-Z]{2}$/.test(c)),
     networks: { ...previous.settings.networks, ...networks },
-    perNetwork: Math.min(5, Math.max(1, Math.round(num(form.get("perNetwork"))) || 2)),
+    chooseLaterText: String(form.get("chooseLaterText") ?? "").trim() || previous.settings.chooseLaterText,
     freeShippingOver: freeOver === "" ? null : Math.max(0, num(freeOver)),
     overwriteShippingAddress: form.get("overwriteShippingAddress") === "on",
     testMarker: String(form.get("testMarker") ?? "").trim() || null,
@@ -95,7 +95,7 @@ export default function Index() {
             <s-checkbox
               name="enabled"
               label="Offer parcel lockers at checkout"
-              details="Buyers see the nearest lockers as shipping options, based on their postcode."
+              details="Buyers see one shipping option per locker type, or the locker they picked on the cart page."
               defaultChecked={settings.enabled}
             />
             <s-text-field
@@ -104,12 +104,11 @@ export default function Index() {
               details="Comma-separated ISO codes, e.g. LT, LV, EE"
               defaultValue={settings.countries.join(", ")}
             />
-            <s-number-field
-              name="perNetwork"
-              label="Lockers shown per network"
-              min={1}
-              max={5}
-              defaultValue={String(settings.perNetwork)}
+            <s-text-field
+              name="chooseLaterText"
+              label="Text under each locker type at checkout"
+              details="The buyer picks the exact locker on the cart page or after payment."
+              defaultValue={settings.chooseLaterText}
             />
             <s-text-field
               name="freeShippingOver"

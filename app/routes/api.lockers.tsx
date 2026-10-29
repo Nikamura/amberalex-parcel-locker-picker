@@ -1,0 +1,28 @@
+import type { LoaderFunctionArgs } from "react-router";
+import { lockersForCountry } from "../lockers/repo.server";
+import { searchLockers } from "../lockers/search";
+
+const headers = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Cache-Control": "public, max-age=300",
+};
+
+// Public locker search used by the cart picker and the thank-you page.
+// GET /api/lockers?country=LT&network=omniva,dpd&q=savanoriu&zip=44100&limit=30
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const url = new URL(request.url);
+  const country = (url.searchParams.get("country") ?? "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(country)) {
+    return new Response(JSON.stringify({ error: "country required" }), { status: 400, headers });
+  }
+  const networks = (url.searchParams.get("network") ?? "").split(",").filter(Boolean);
+  const lockers = lockersForCountry(country).filter((l) => networks.length === 0 || networks.includes(l.network));
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 30));
+  const results = searchLockers(lockers, {
+    q: url.searchParams.get("q"),
+    zip: url.searchParams.get("zip"),
+    limit,
+  });
+  return new Response(JSON.stringify({ lockers: results }), { headers });
+};

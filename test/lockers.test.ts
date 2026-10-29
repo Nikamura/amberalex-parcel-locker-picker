@@ -3,6 +3,7 @@ import { verifyShopifyHmac } from "../app/carrier/hmac";
 import { createHmac } from "node:crypto";
 import { locateBuyer, nearestPerNetwork, normalizeZip } from "../app/lockers/nearest";
 import { buildRates, type RateRequest } from "../app/lockers/rates";
+import { searchLockers } from "../app/lockers/search";
 import { decodeServiceCode, encodeServiceCode } from "../app/lockers/service-code";
 import { defaultSettings, type Settings } from "../app/lockers/settings";
 import { parseAlsendo } from "../app/lockers/sources/alsendo";
@@ -50,7 +51,8 @@ describe("service codes", () => {
   it("round-trips and rejects foreign codes", () => {
     const code = encodeServiceCode({ source: "alsendo", externalId: "53262" });
     expect(code).toBe("PLP1:alsendo:53262");
-    expect(decodeServiceCode(code)).toEqual({ source: "alsendo", externalId: "53262" });
+    expect(decodeServiceCode(code)).toEqual({ kind: "locker", source: "alsendo", externalId: "53262" });
+    expect(decodeServiceCode("PLP1N:omniva")).toEqual({ kind: "network", network: "omniva" });
     expect(decodeServiceCode("Standard Shipping")).toBeNull();
     expect(decodeServiceCode(undefined)).toBeNull();
   });
@@ -79,22 +81,32 @@ describe("locating the buyer", () => {
 });
 
 describe("buildRates", () => {
-  it("returns locker rates in minor units", () => {
+  it("offers one rate per enabled locker type", () => {
     const rates = buildRates(request(), settings(), lockers, "EUR");
-    expect(rates.map((r) => r.service_code)).toEqual([
-      "PLP1:alsendo:1",
-      "PLP1:alsendo:4",
-      "PLP1:alsendo:2",
-      "PLP1:alsendo:5",
+    expect(rates).toEqual([
+      { service_name: "DPD", service_code: "PLP1N:dpd", total_price: "349", currency: "EUR", description: "Choose your parcel locker after payment" },
+      { service_name: "Omniva", service_code: "PLP1N:omniva", total_price: "299", currency: "EUR", description: "Choose your parcel locker after payment" },
     ]);
-    expect(rates[0]).toMatchObject({ service_name: "Omniva – Locker 1", total_price: "299", currency: "EUR" });
   });
 
-  it("skips disabled networks, other countries and disabled shops", () => {
-    const onlyOmniva = settings({
-      networks: { omniva: { enabled: true, label: "Omniva", price: 2.99 } },
-    });
-    expect(buildRates(request(), onlyOmniva, lockers, "EUR").every((r) => r.service_name.startsWith("Omniva"))).toBe(true);
+  it("puts the locker picked on the cart page first", () => {
+    const req = request();
+    req.rate.items[0].properties = { _plp_locker: "alsendo:2" };
+    const rates = buildRates(req, settings(), lockers, "EUR");
+    expect(rates[0]).toMatchObject({ service_name: "Omniva – Locker 2", service_code: "PLP1:alsendo:2", total_price: "299" });
+    expect(rates).toHaveLength(3);
+  });
+
+  it("ignores a cart locker that is unknown or of a disabled network", () => {
+    const req = request();
+    req.rate.items[0].properties = { _plp_locker: "alsendo:999" };
+    expect(buildRates(req, settings(), lockers, "EUR")).toHaveLength(2);
+    req.rate.items[0].properties = { _plp_locker: "alsendo:4" };
+    const onlyOmniva = settings({ networks: { omniva: { enabled: true, label: "Omniva", price: 2.99 } } });
+    expect(buildRates(req, onlyOmniva, lockers, "EUR").map((r) => r.service_code)).toEqual(["PLP1N:omniva"]);
+  });
+
+  it("skips other countries and disabled shops", () => {
     expect(buildRates(request({ country: "LV" }), settings(), lockers, "EUR")).toEqual([]);
     expect(buildRates(request(), settings({ enabled: false }), lockers, "EUR")).toEqual([]);
   });
@@ -110,7 +122,21 @@ describe("buildRates", () => {
     const rates = buildRates(request({}, 10_000), settings({ freeShippingOver: 100 }), lockers, "EUR");
     expect(rates.every((r) => r.total_price === "0")).toBe(true);
     const below = buildRates(request({}, 9_999), settings({ freeShippingOver: 100 }), lockers, "EUR");
-    expect(below[0].total_price).toBe("299");
+    expect(below[1].total_price).toBe("299");
+  });
+});
+
+describe("searchLockers", () => {
+  const list = [
+    locker({ externalId: "a", network: "omniva", zip: "44100", lat: 54.9, lng: 23.9, name: "Kauno LIDL Savanorių pr. 315", city: "Kaunas" }),
+    locker({ externalId: "b", network: "dpd", zip: "01100", lat: 54.68, lng: 25.28, name: "Akropolis", city: "Vilnius" }),
+  ];
+  it("matches words ignoring case and diacritics", () => {
+    expect(searchLockers(list, { q: "savanoriu kaunas" }).map((l) => l.id)).toEqual(["alsendo:a"]);
+    expect(searchLockers(list, { q: "nothing" })).toEqual([]);
+  });
+  it("sorts by distance from a postcode", () => {
+    expect(searchLockers(list, { zip: "01105" }).map((l) => l.id)).toEqual(["alsendo:b", "alsendo:a"]);
   });
 });
 

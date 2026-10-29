@@ -1,33 +1,30 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { buildOrderInput, lockerRefFromOrder, type OrderPayload } from "../lockers/order-update";
+import { choiceFromShippingCodes, snapshotFromWebhook, type OrderPayload } from "../lockers/order-update";
+import { markLockerPending, saveChosenLocker } from "../lockers/order-sync.server";
 import { findLocker, getShopSettings } from "../lockers/repo.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, payload, admin } = await authenticate.webhook(request);
   const order = payload as OrderPayload;
-  const ref = lockerRefFromOrder(order);
-  if (!ref || !admin) return new Response();
-
-  const locker = findLocker(ref.source, ref.externalId);
-  if (!locker) {
-    console.error(`[orders] ${shop}: locker ${ref.source}:${ref.externalId} not in catalogue`);
-    return new Response();
-  }
+  const choice = choiceFromShippingCodes((order.shipping_lines ?? []).map((l) => l.code));
+  if (!choice || !admin) return new Response();
 
   const { settings } = getShopSettings(shop);
-  const res = await admin.graphql(
-    `#graphql
-    mutation SaveLocker($input: OrderInput!) {
-      orderUpdate(input: $input) {
-        order { id }
-        userErrors { field message }
-      }
-    }`,
-    { variables: { input: buildOrderInput(order, locker, settings) } },
-  );
-  const body = await res.json();
-  const errors = body.data?.orderUpdate?.userErrors ?? [];
-  if (errors.length) console.error(`[orders] ${shop}: orderUpdate failed`, errors);
+  const snapshot = snapshotFromWebhook(order);
+  try {
+    if (choice.kind === "network") {
+      await markLockerPending(admin, snapshot, choice.network, settings);
+      return new Response();
+    }
+    const locker = findLocker(choice.source, choice.externalId);
+    if (!locker) {
+      console.error(`[orders] ${shop}: locker ${choice.source}:${choice.externalId} not in catalogue`);
+      return new Response();
+    }
+    await saveChosenLocker(admin, snapshot, locker, settings);
+  } catch (error) {
+    console.error(`[orders] ${shop}: could not record locker on ${snapshot.id}`, error);
+  }
   return new Response();
 };

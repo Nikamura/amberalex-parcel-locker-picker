@@ -10,8 +10,8 @@ export interface Settings {
   enabled: boolean;
   countries: string[];
   networks: Record<string, NetworkSettings>;
-  /** Nearest lockers offered per enabled network. */
-  perNetwork: number;
+  /** Shown under each locker-type rate when the locker is chosen after payment. */
+  chooseLaterText: string;
   /** Order subtotal (shop currency, major units) from which lockers are free. */
   freeShippingOver: number | null;
   /** Replace the order's shipping address with the locker address. */
@@ -24,12 +24,12 @@ export interface Settings {
 }
 
 export const NETWORK_LABELS: Record<string, string> = {
-  omniva: "Omniva",
-  lp_post: "LP Express",
-  LpPost: "LP Express",
-  dpd: "DPD",
-  venipak: "Venipak",
-  gls: "SmartPosti",
+  omniva: "Omniva parcel locker",
+  lp_post: "LP Express parcel locker",
+  LpPost: "LP Express parcel locker",
+  dpd: "DPD parcel locker",
+  venipak: "Venipak parcel locker",
+  gls: "SmartPosti parcel locker",
 };
 
 export function defaultSettings(): Settings {
@@ -37,7 +37,7 @@ export function defaultSettings(): Settings {
     enabled: false,
     countries: ["LT"],
     networks: {},
-    perNetwork: 2,
+    chooseLaterText: "Choose your parcel locker after payment",
     freeShippingOver: null,
     overwriteShippingAddress: true,
     testMarker: null,
