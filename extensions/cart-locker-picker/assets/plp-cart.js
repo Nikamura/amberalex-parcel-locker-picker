@@ -140,9 +140,51 @@
   var popup = null;
   var quietMoves = 0; // camera moves started by code, which must not refresh the list
 
-  function colorOf(network) {
+  function logoKey(network) {
     var n = (config.networks || []).find(function (x) { return x.network === network; });
-    return COLORS[(n && n.carrierLogo) || network] || '#111';
+    return (n && n.carrierLogo) || network;
+  }
+
+  function colorOf(network) {
+    return COLORS[logoKey(network)] || '#111';
+  }
+
+  // Round map badge: white disc, carrier-coloured ring, carrier logo inside.
+  var BADGE = 30; // CSS px
+  function badge(key, img) {
+    var r = 2, size = BADGE * r, c = document.createElement('canvas');
+    c.width = c.height = size;
+    var g = c.getContext('2d');
+    g.beginPath();
+    g.arc(size / 2, size / 2, size / 2 - 3 * r, 0, Math.PI * 2);
+    g.fillStyle = '#fff';
+    g.shadowColor = 'rgba(0,0,0,.3)';
+    g.shadowBlur = 3 * r;
+    g.fill();
+    g.shadowColor = 'transparent';
+    g.lineWidth = 2 * r;
+    g.strokeStyle = COLORS[key] || '#111';
+    g.stroke();
+    if (img) {
+      var s = 16 * r;
+      g.drawImage(img, (size - s) / 2, (size - s) / 2, s, s);
+    } else {
+      g.beginPath();
+      g.arc(size / 2, size / 2, 5 * r, 0, Math.PI * 2);
+      g.fillStyle = COLORS[key] || '#111';
+      g.fill();
+    }
+    return g.getImageData(0, 0, size, size);
+  }
+
+  // Badges are added on demand: a plain one at once, the logo version once it loads.
+  function addBadge(id) {
+    var key = id.slice(4);
+    map.addImage(id, badge(key, null), { pixelRatio: 2 });
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () { if (map && map.hasImage(id)) map.updateImage(id, badge(key, img)); };
+    img.src = APP + '/logos/carrier-' + key + '.png';
   }
 
   function loadMapLibre() {
@@ -248,18 +290,19 @@
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
         paint: { 'text-color': '#fff' },
       });
+      map.on('styleimagemissing', function (e) { if (e.id.indexOf('plp-') === 0) addBadge(e.id); });
+      map.addSource('plp-sel', { type: 'geojson', data: EMPTY });
+      map.addLayer({ id: 'plp-sel', type: 'circle', source: 'plp-sel', paint: { 'circle-radius': 20, 'circle-color': ['get', 'c'], 'circle-opacity': 0.35, 'circle-stroke-width': 2, 'circle-stroke-color': ['get', 'c'] } });
       map.addLayer({
-        id: 'plp-points', type: 'circle', source: 'plp', filter: ['!', ['has', 'point_count']],
-        paint: {
-          'circle-color': ['get', 'c'],
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 4.5, 15, 8],
-          'circle-stroke-width': 2, 'circle-stroke-color': '#fff',
+        id: 'plp-points', type: 'symbol', source: 'plp', filter: ['!', ['has', 'point_count']],
+        layout: {
+          'icon-image': ['concat', 'plp-', ['get', 'k']],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.75, 15, 1],
+          'icon-allow-overlap': true,
         },
       });
       map.addSource('plp-you', { type: 'geojson', data: EMPTY });
       map.addLayer({ id: 'plp-you', type: 'circle', source: 'plp-you', paint: { 'circle-radius': 7, 'circle-color': '#1a73e8', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } });
-      map.addSource('plp-sel', { type: 'geojson', data: EMPTY });
-      map.addLayer({ id: 'plp-sel', type: 'circle', source: 'plp-sel', paint: { 'circle-radius': 11, 'circle-color': ['get', 'c'], 'circle-stroke-width': 4, 'circle-stroke-color': '#fff' } });
 
       map.on('click', 'plp-clusters', function (e) {
         var f = e.features[0];
@@ -311,7 +354,7 @@
       features: state.points
         .filter(function (pt) { return state.networks.indexOf(pt.network) >= 0; })
         .map(function (pt) {
-          return { type: 'Feature', properties: { id: pt.id, c: colorOf(pt.network) }, geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] } };
+          return { type: 'Feature', properties: { id: pt.id, k: logoKey(pt.network) }, geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] } };
         }),
     });
   }
