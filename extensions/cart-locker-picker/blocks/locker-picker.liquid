@@ -5,7 +5,7 @@
 {% endcomment %}
 <script>
   window.ParcelLockerPicker = {
-    appUrl: {{ block.settings.app_url | json }},
+    appUrl: "https://parcel-locker-picker.karolis.workers.dev",
     shop: {{ shop.permanent_domain | json }},
     locale: {{ request.locale.iso_code | json }},
     country: {{ localization.country.iso_code | json }},
@@ -18,13 +18,6 @@
 {
   "name": "Parcel locker picker",
   "target": "body",
-  "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "App URL",
-      "default": "https://lockers.cn.lt"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}
