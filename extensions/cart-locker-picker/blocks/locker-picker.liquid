@@ -5,7 +5,7 @@
 {% endcomment %}
 <script>
   window.ParcelLockerPicker = {
-    appUrl: "https://parcel-locker-picker.karolis.workers.dev",
+    appUrl: "https://amberalex-parcel-locker-picker.karolis.workers.dev",
     shop: {{ shop.permanent_domain | json }},
     locale: {{ request.locale.iso_code | json }},
     country: {{ localization.country.iso_code | json }},
@@ -16,7 +16,7 @@
 
 {% schema %}
 {
-  "name": "Parcel locker picker",
+  "name": "Amber Alex parcel locker picker",
   "target": "body",
   "settings": []
 }

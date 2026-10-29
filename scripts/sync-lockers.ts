@@ -12,7 +12,7 @@ import { searchText } from "../app/lockers/search";
 import { alsendoSource } from "../app/lockers/sources/alsendo";
 import type { Locker } from "../app/lockers/types";
 
-const DATABASE = "parcel-locker-picker";
+const DATABASE = "amberalex-parcel-locker-picker";
 // D1 caps a single statement at 100 KB; ~300 bytes per row keeps this well under.
 const ROWS_PER_INSERT = 100;
 

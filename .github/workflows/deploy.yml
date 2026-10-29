@@ -27,5 +27,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm exec wrangler d1 migrations apply parcel-locker-picker --remote
+      - run: pnpm exec wrangler d1 migrations apply amberalex-parcel-locker-picker --remote
       - run: pnpm exec wrangler deploy

@@ -1,7 +1,7 @@
-# Production config for https://parcel-locker-picker.karolis.workers.dev. Push with `pnpm dlx @shopify/cli app deploy`.
+# Production config for https://amberalex-parcel-locker-picker.karolis.workers.dev. Push with `pnpm dlx @shopify/cli app deploy`.
 client_id = "e94c913beb6f1e4efd371daf77090f13"
-name = "Parcel locker picker"
-application_url = "https://parcel-locker-picker.karolis.workers.dev"
+name = "Amber Alex parcel locker picker"
+application_url = "https://amberalex-parcel-locker-picker.karolis.workers.dev"
 embedded = true
 
 [access_scopes]
@@ -10,7 +10,7 @@ embedded = true
 scopes = "write_shipping,read_orders,write_orders"
 
 [auth]
-redirect_urls = [ "https://parcel-locker-picker.karolis.workers.dev/auth/callback" ]
+redirect_urls = [ "https://amberalex-parcel-locker-picker.karolis.workers.dev/auth/callback" ]
 
 [webhooks]
 api_version = "2026-10"

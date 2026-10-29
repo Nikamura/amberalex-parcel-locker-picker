@@ -1,5 +1,5 @@
 {
-  "name": "parcel-locker-picker",
+  "name": "amberalex-parcel-locker-picker",
   "private": true,
   "scripts": {
     "build": "cp extensions/cart-locker-picker/assets/plp-cart.js extensions/cart-locker-picker/assets/plp-cart.css public/ && react-router build",
@@ -19,7 +19,7 @@
     "cf-typegen": "wrangler types --strict-vars false",
     "sync:lockers": "tsx scripts/sync-lockers.ts",
     "preview": "vite preview",
-    "deploy:worker": "wrangler d1 migrations apply parcel-locker-picker --remote && wrangler deploy"
+    "deploy:worker": "wrangler d1 migrations apply amberalex-parcel-locker-picker --remote && wrangler deploy"
   },
   "type": "module",
   "engines": {

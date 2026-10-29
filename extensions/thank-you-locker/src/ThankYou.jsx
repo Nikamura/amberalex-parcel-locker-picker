@@ -2,7 +2,7 @@ import '@shopify/ui-extensions/preact';
 import {render} from 'preact';
 import {useEffect, useRef, useState} from 'preact/hooks';
 
-const APP_URL = 'https://parcel-locker-picker.karolis.workers.dev';
+const APP_URL = 'https://amberalex-parcel-locker-picker.karolis.workers.dev';
 const MODAL_ID = 'parcel-locker-modal';
 
 export default async () => {

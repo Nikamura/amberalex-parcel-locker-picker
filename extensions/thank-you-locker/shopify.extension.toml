@@ -14,5 +14,5 @@ module = "./src/ThankYou.jsx"
 target = "purchase.thank-you.header.render-after"
 
 [extensions.capabilities]
-# Calls https://parcel-locker-picker.karolis.workers.dev with the checkout session token.
+# Calls https://amberalex-parcel-locker-picker.karolis.workers.dev with the checkout session token.
 network_access = true
