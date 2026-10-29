@@ -2,12 +2,12 @@
   "heading": "Your parcel locker",
   "chooseHeading": "Choose your parcel locker",
   "chooseIntro": "We'll deliver your order to a parcel locker. Choose which one – it only takes a moment.",
-  "change": "Change",
   "search": "Search by city, street or locker name",
   "noResults": "No lockers found. Try another search.",
   "saved": "Saved. We will deliver your order to this locker.",
   "error": "Could not save the locker. Please try again or contact us.",
   "locked": "Your order is already being prepared, so the locker can no longer be changed here. Please contact us.",
   "loadError": "Could not load the parcel locker choice. Please contact us.",
-  "choose": "Choose locker"
+  "choose": "Choose locker",
+  "contactToChange": "Need a different locker? Contact us."
 }

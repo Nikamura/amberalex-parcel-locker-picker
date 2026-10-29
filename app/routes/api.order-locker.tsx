@@ -8,7 +8,7 @@ import { parseLockerId } from "../lockers/service-code";
 import { carrierLogoKey } from "../lockers/brands";
 import { ANY_NETWORK, combinedPrice, networkSettings, networkShort, type Settings } from "../lockers/settings";
 
-// Lets the buyer choose or change the locker on the thank-you page.
+// Lets the buyer choose the locker on the thank-you page if the order has none yet.
 // Auth: checkout session token (dest = shop) plus the order's confirmation number.
 // The buyer may switch to any locker type that costs the same or less than the one paid for.
 
@@ -96,8 +96,11 @@ async function describe(shop: string, order: AdminOrder) {
       : current?.network ?? (await findLocker(choice.source, choice.externalId))?.network;
   const country = order.shippingAddress?.countryCodeV2 ?? settings.countries[0];
   const ageDays = (Date.now() - Date.parse(order.createdAt)) / 86_400_000;
+  // The buyer can only fill in a missing locker (draft orders, or skipped the
+  // cart picker). A chosen locker is final here; changes go through the shop.
   const editable =
-    !order.cancelledAt && order.displayFulfillmentStatus === "UNFULFILLED" && ageDays <= EDIT_WINDOW_DAYS;
+    !order.cancelledAt && order.displayFulfillmentStatus === "UNFULFILLED" && ageDays <= EDIT_WINDOW_DAYS &&
+    !current;
 
   return {
     settings,

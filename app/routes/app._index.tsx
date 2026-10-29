@@ -143,8 +143,8 @@ export default function Index() {
                 next to your other shipping rates. Draft-order checkout links work the same way.
               </s-list-item>
               <s-list-item>
-                After payment: the thank-you page asks for (or lets the buyer change) the exact locker, any type at the
-                same or lower price.
+                After payment: if no locker was picked yet (e.g. draft orders), the thank-you page asks for one, any
+                type at the same or lower price. A chosen locker is shown read-only; changes go through you.
               </s-list-item>
               <s-list-item>
                 The order gets the locker as separate fields ("Parcel locker", "Parcel locker address", "Parcel locker

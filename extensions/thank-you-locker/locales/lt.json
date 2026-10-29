@@ -2,12 +2,12 @@
   "heading": "Jūsų paštomatas",
   "chooseHeading": "Pasirinkite paštomatą",
   "chooseIntro": "Užsakymą pristatysime į paštomatą. Pasirinkite, į kurį – tai užtruks vos akimirką.",
-  "change": "Keisti",
   "search": "Ieškokite pagal miestą, gatvę ar paštomato pavadinimą",
   "noResults": "Paštomatų nerasta. Pabandykite kitaip.",
   "saved": "Išsaugota. Užsakymą pristatysime į šį paštomatą.",
   "error": "Nepavyko išsaugoti paštomato. Bandykite dar kartą arba susisiekite su mumis.",
   "locked": "Jūsų užsakymas jau ruošiamas, todėl paštomato čia pakeisti nebegalima. Susisiekite su mumis.",
   "loadError": "Nepavyko įkelti paštomato pasirinkimo. Susisiekite su mumis.",
-  "choose": "Pasirinkti paštomatą"
+  "choose": "Pasirinkti paštomatą",
+  "contactToChange": "Norite kito paštomato? Susisiekite su mumis."
 }

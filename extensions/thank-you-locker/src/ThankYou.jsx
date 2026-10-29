@@ -133,7 +133,7 @@ function Extension() {
 
   async function choose(locker) {
     if (inEditor) {
-      setInfo({...info, current: locker});
+      setInfo({...info, current: locker, editable: false});
       modal.current?.hideOverlay();
       return;
     }
@@ -144,7 +144,7 @@ function Extension() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({orderId, number, lockerId: locker.id}),
       });
-      setInfo({...info, current: data.current});
+      setInfo({...info, current: data.current, editable: false});
       setStatus('saved');
       modal.current?.hideOverlay();
     } catch {
@@ -188,14 +188,10 @@ function Extension() {
           <s-stack gap="base">
             <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
               <s-heading>{info.current ? t('heading') : t('chooseHeading')}</s-heading>
-              {info.editable && info.current && (
-                <s-link commandFor={MODAL_ID} command="--show">
-                  {t('change')}
-                </s-link>
-              )}
             </s-stack>
             {status === 'saved' && <s-banner tone="success">{t('saved')}</s-banner>}
             {summary}
+            {info.current && <s-text color="subdued">{t('contactToChange')}</s-text>}
             {!info.editable && !info.current && <s-text color="subdued">{t('locked')}</s-text>}
           </s-stack>
         </s-box>
