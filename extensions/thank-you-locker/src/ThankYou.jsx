@@ -32,6 +32,7 @@ function Extension() {
   const number = confirmation?.number ?? '';
 
   const [info, setInfo] = useState(null);
+  const [loadState, setLoadState] = useState('loading');
   const [editing, setEditing] = useState(false);
   const [network, setNetwork] = useState('');
   const [query, setQuery] = useState('');
@@ -45,13 +46,17 @@ function Extension() {
     const params = new URLSearchParams({orderId, number});
     api(`/api/order-locker?${params}`)
       .then((data) => {
+        setLoadState('done');
         if (!data.applicable) return;
         setInfo(data);
         setNetwork(data.current?.network ?? data.paidNetwork ?? data.networks[0]?.network ?? '');
         setResults(data.suggestions ?? []);
         setEditing(!data.current);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error('[parcel-locker] load failed', error);
+        setLoadState('error');
+      });
   }, [orderId, number]);
 
   useEffect(() => {
@@ -68,7 +73,11 @@ function Extension() {
     }, 300);
   }, [info, editing, network, query]);
 
-  if (!info) return null;
+  if (!info) {
+    if (loadState === 'error') return <s-banner tone="warning">{t('loadError')}</s-banner>;
+    if (loadState === 'loading') return <s-text>{t('loading')}</s-text>;
+    return null;
+  }
 
   if (!editing && info.current) {
     return (

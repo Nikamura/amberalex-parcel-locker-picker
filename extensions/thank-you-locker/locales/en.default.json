@@ -10,5 +10,7 @@
   "save": "Save locker",
   "saved": "Saved. We will deliver your order to this locker.",
   "error": "Could not save the locker. Please try again or contact us.",
-  "locked": "Your order is already being prepared, so the locker can no longer be changed here. Please contact us."
+  "locked": "Your order is already being prepared, so the locker can no longer be changed here. Please contact us.",
+  "loading": "Loading parcel locker…",
+  "loadError": "Could not load the parcel locker choice. Please contact us."
 }
