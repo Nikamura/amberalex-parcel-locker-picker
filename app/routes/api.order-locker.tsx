@@ -9,6 +9,7 @@ import { networkSettings, type Settings } from "../lockers/settings";
 
 // Lets the buyer choose or change the locker on the thank-you page.
 // Auth: checkout session token (dest = shop) plus the order's confirmation number.
+// The buyer may switch to any locker type that costs the same or less than the one paid for.
 
 const EDIT_WINDOW_DAYS = 14;
 
@@ -53,12 +54,12 @@ async function loadOrder(shop: string, orderId: string, number: string) {
   return { admin, order };
 }
 
-/** Locker types the buyer may switch between without changing what they paid. */
+/** Locker types the buyer may switch to: any enabled type that costs the same or less than what they paid. */
 function allowedNetworks(settings: Settings, country: string, paidNetwork: string) {
   const present = new Set(lockersForCountry(country).map((l) => l.network));
   const paidPrice = networkSettings(settings, paidNetwork).price;
   return [...present]
-    .filter((n) => networkSettings(settings, n).enabled && networkSettings(settings, n).price === paidPrice)
+    .filter((n) => networkSettings(settings, n).enabled && networkSettings(settings, n).price <= paidPrice)
     .sort()
     .map((network) => ({ network, label: networkSettings(settings, network).label }));
 }
