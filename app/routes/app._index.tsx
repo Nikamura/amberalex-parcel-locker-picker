@@ -267,7 +267,7 @@ export default function Index() {
               <s-link href={links.themeEmbed} target="_top">Open theme editor</s-link>
             </SetupStep>
             <SetupStep title="Thank-you page">
-              Add the "Parcel locker choice" block under Apps on the thank-you page.{" "}
+              On the thank-you page, add the "Parcel locker choice" app block, e.g. in Main under the confirmation.{" "}
               <s-link href={links.checkoutEditor} target="_top">Open checkout editor</s-link>
             </SetupStep>
             <SetupStep done={live} title="Go live">

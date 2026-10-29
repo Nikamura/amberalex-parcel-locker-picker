@@ -50,14 +50,39 @@ function distance(km) {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`;
 }
 
+// Shown in the checkout editor, where there is no real order to load.
+const PREVIEW = {
+  applicable: true,
+  editable: true,
+  country: 'LT',
+  zip: '44146',
+  current: {
+    id: 'preview',
+    network: 'lp_post',
+    name: 'IKI',
+    address: 'Savanorių pr. 111',
+    city: 'Kaunas',
+    carrierLogo: 'lp_post',
+    brand: 'iki',
+  },
+  networks: [
+    {network: 'lp_post', short: 'LP Express', carrierLogo: 'lp_post'},
+    {network: 'omniva', short: 'Omniva', carrierLogo: 'omniva'},
+    {network: 'dpd', short: 'DPD', carrierLogo: 'dpd'},
+  ],
+  paidNetwork: 'any',
+  suggestions: [],
+};
+
 function Extension() {
+  const inEditor = Boolean(shopify.extension.editor);
   const confirmation = shopify.orderConfirmation.value;
   const orderId = confirmation?.order?.id;
   const number = confirmation?.number ?? '';
 
-  const [info, setInfo] = useState(null);
-  const [loadState, setLoadState] = useState('loading');
-  const [network, setNetwork] = useState('');
+  const [info, setInfo] = useState(inEditor ? PREVIEW : null);
+  const [loadState, setLoadState] = useState(inEditor ? 'done' : 'loading');
+  const [network, setNetwork] = useState(inEditor ? PREVIEW.current.network : '');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [savingId, setSavingId] = useState('');
@@ -66,7 +91,7 @@ function Extension() {
   const modal = useRef(null);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (inEditor || !orderId) return;
     const params = new URLSearchParams({orderId, number});
     api(`/api/order-locker?${params}`)
       .then((data) => {
@@ -103,6 +128,11 @@ function Extension() {
   }
 
   async function choose(locker) {
+    if (inEditor) {
+      setInfo({...info, current: locker});
+      modal.current?.hideOverlay();
+      return;
+    }
     setSavingId(locker.id);
     try {
       const data = await api('/api/order-locker', {

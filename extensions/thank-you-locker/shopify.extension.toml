@@ -7,11 +7,11 @@ type = "ui_extension"
 uid = "fd3305aa-cf56-bbd3-178f-0ace2a00af9c9c3e2fe5"
 
 # Thank-you page: the buyer picks (or changes) the exact parcel locker.
-# A static target renders automatically under the page header, so merchants
-# don't have to place a block in the checkout editor.
+# A block target, so the merchant can place it anywhere in the checkout
+# editor (e.g. the Main section, under the confirmation).
 [[extensions.targeting]]
 module = "./src/ThankYou.jsx"
-target = "purchase.thank-you.header.render-after"
+target = "purchase.thank-you.block.render"
 
 [extensions.capabilities]
 # Calls https://amberalex-parcel-locker-picker.karolis.workers.dev with the checkout session token.
