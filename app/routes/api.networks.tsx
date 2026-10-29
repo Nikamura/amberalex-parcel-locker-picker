@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { getShopSettings, networkCounts } from "../lockers/repo.server";
-import { networkSettings } from "../lockers/settings";
+import { carrierLogoKey } from "../lockers/brands";
+import { networkSettings, networkShort } from "../lockers/settings";
 
 const headers = {
   "Content-Type": "application/json",
@@ -24,10 +25,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     .sort()
     .map((network) => {
       const { label, price } = networkSettings(settings, network);
-      return { network, label, price };
+      return { network, label, short: networkShort(network), price, carrierLogo: carrierLogoKey(network) };
     });
   return new Response(
-    JSON.stringify({ enabled: true, testMode: Boolean(settings.testMarker), countries: settings.countries, currency, networks }),
+    JSON.stringify({
+      enabled: true,
+      testMode: Boolean(settings.testMarker),
+      countries: settings.countries,
+      currency,
+      combineNetworks: settings.combineNetworks,
+      networks,
+    }),
     { headers },
   );
 };

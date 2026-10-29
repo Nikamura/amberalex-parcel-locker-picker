@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import { locateBuyer, nearestPerNetwork, normalizeZip } from "../app/lockers/nearest";
 import { buildRates, type RateRequest } from "../app/lockers/rates";
 import { searchLockers } from "../app/lockers/search";
+import { detectBrand } from "../app/lockers/brands";
 import { decodeServiceCode, encodeServiceCode } from "../app/lockers/service-code";
 import { defaultSettings, type Settings } from "../app/lockers/settings";
 import { parseAlsendo } from "../app/lockers/sources/alsendo";
@@ -130,6 +131,17 @@ describe("buildRates", () => {
     expect(rates.every((r) => r.total_price === "0")).toBe(true);
     const below = buildRates(request({}, 9_999), settings({ freeShippingOver: 100 }), lockers, "EUR");
     expect(below[1].total_price).toBe("299");
+  });
+});
+
+describe("brands", () => {
+  it("detects the shop chain from the locker name", () => {
+    expect(detectBrand("Kauno LIDL Savanorių pr. 315 paštomatas")).toBe("lidl");
+    expect(detectBrand("Vasario 16 Norfa paštomatas 097")).toBe("norfa");
+    expect(detectBrand("Šilas Taikos DPD paštomatas 141")).toBe("silas");
+    expect(detectBrand("Express Market")).toBe("express-market");
+    expect(detectBrand("Amatų skveras")).toBeUndefined();
+    expect(detectBrand("Venipak locker, NORFA Venipak paštomatas")).toBe("norfa");
   });
 });
 

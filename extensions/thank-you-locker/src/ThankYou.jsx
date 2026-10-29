@@ -27,6 +27,24 @@ function lockerLine(locker) {
   return [locker.address, locker.city].filter(Boolean).join(', ');
 }
 
+function Logo({kind, name, size = '28px'}) {
+  if (!name) return null;
+  return (
+    <s-box inlineSize={/** @type {any} */ (size)} blockSize={/** @type {any} */ (size)}>
+      <s-image src={`${APP_URL}/logos/${kind}-${name}.png`} alt="" inlineSize="fill" aspectRatio="1/1" borderRadius="small" />
+    </s-box>
+  );
+}
+
+function LockerLogos({locker}) {
+  return (
+    <s-stack direction="inline" gap="small-300" alignItems="center">
+      <Logo kind="carrier" name={locker.carrierLogo} />
+      <Logo kind="brand" name={locker.brand} />
+    </s-stack>
+  );
+}
+
 function distance(km) {
   if (km == null) return '';
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`;
@@ -84,8 +102,6 @@ function Extension() {
     return null;
   }
 
-  const shortName = (key) => info.networks.find((n) => n.network === key)?.short ?? key;
-
   async function choose(locker) {
     setSavingId(locker.id);
     try {
@@ -107,7 +123,7 @@ function Extension() {
   const summary = info.current ? (
     <s-stack gap="small-200">
       <s-stack direction="inline" gap="small-200" alignItems="center">
-        <s-badge>{shortName(info.current.network)}</s-badge>
+        <LockerLogos locker={info.current} />
         <s-text type="strong">{info.current.name}</s-text>
       </s-stack>
       <s-text color="subdued">{lockerLine(info.current)}</s-text>
@@ -146,7 +162,10 @@ function Extension() {
                   pressed={n.network === network}
                   onClick={() => setNetwork(n.network)}
                 >
-                  {n.short}
+                  <s-stack direction="inline" gap="small-300" alignItems="center">
+                    <Logo kind="carrier" name={n.carrierLogo} size="20px" />
+                    {n.short}
+                  </s-stack>
                 </s-press-button>
               ))}
             </s-stack>
@@ -173,14 +192,18 @@ function Extension() {
                     onClick={() => choose(l)}
                   >
                     <s-stack direction="inline" justifyContent="space-between" alignItems="center" gap="base">
-                      <s-stack gap="small-300">
-                        <s-text type="strong">{l.name}</s-text>
-                        <s-text color="subdued">{lockerLine(l)}</s-text>
+                      <s-stack direction="inline" alignItems="center" gap="base">
+                        <LockerLogos locker={l} />
+                        <s-stack gap="small-300">
+                          <s-text type="strong">{l.name}</s-text>
+                          <s-text color="subdued">{lockerLine(l)}</s-text>
+                        </s-stack>
                       </s-stack>
-                      <s-stack direction="inline" gap="small-200" alignItems="center">
-                        {l.distanceKm != null && <s-text color="subdued">{distance(l.distanceKm)}</s-text>}
-                        {savingId === l.id ? <s-spinner size="small" /> : <s-badge>{shortName(l.network)}</s-badge>}
-                      </s-stack>
+                      {savingId === l.id ? (
+                        <s-spinner size="small" />
+                      ) : (
+                        l.distanceKm != null && <s-text color="subdued">{distance(l.distanceKm)}</s-text>
+                      )}
                     </s-stack>
                   </s-clickable>
                 ))}

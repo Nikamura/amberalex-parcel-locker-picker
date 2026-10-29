@@ -5,6 +5,7 @@ import { saveChosenLocker } from "../lockers/order-sync.server";
 import { findLocker, getShopSettings, lockersForCountry } from "../lockers/repo.server";
 import { searchLockers, toResult } from "../lockers/search";
 import { parseLockerId } from "../lockers/service-code";
+import { carrierLogoKey } from "../lockers/brands";
 import { ANY_NETWORK, combinedPrice, networkSettings, networkShort, type Settings } from "../lockers/settings";
 
 // Lets the buyer choose or change the locker on the thank-you page.
@@ -73,7 +74,7 @@ function allowedNetworks(settings: Settings, country: string, paidNetwork: strin
   return enabled
     .filter((n) => networkSettings(settings, n).price <= paidPrice)
     .sort()
-    .map((network) => ({ network, label: networkSettings(settings, network).label, short: networkShort(network) }));
+    .map((network) => ({ network, label: networkSettings(settings, network).label, short: networkShort(network), carrierLogo: carrierLogoKey(network) }));
 }
 
 function describe(shop: string, order: AdminOrder) {

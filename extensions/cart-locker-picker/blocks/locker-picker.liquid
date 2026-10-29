@@ -1,0 +1,30 @@
+{% comment %}
+  Parcel locker picker for the cart page and cart drawer. Adds a "Choose parcel
+  locker" row next to the checkout button; the chosen locker is stored on cart
+  lines (_plp_locker) and becomes the first shipping option at checkout.
+{% endcomment %}
+<script>
+  window.ParcelLockerPicker = {
+    appUrl: {{ block.settings.app_url | json }},
+    shop: {{ shop.permanent_domain | json }},
+    locale: {{ request.locale.iso_code | json }},
+    country: {{ localization.country.iso_code | json }},
+  };
+</script>
+<link rel="stylesheet" href="{{ 'plp-cart.css' | asset_url }}">
+<script src="{{ 'plp-cart.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Parcel locker picker",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App URL",
+      "default": "https://lockers.cn.lt"
+    }
+  ]
+}
+{% endschema %}

@@ -1,4 +1,5 @@
-import { distanceKm, locateBuyer } from "./nearest";
+import { carrierLogoKey, detectBrand } from "./brands";
+import { distanceKm, locateBuyer, type Point } from "./nearest";
 import { formatLockerId } from "./service-code";
 import type { Locker } from "./types";
 
@@ -9,7 +10,13 @@ export interface LockerResult {
   address: string;
   city: string;
   zip: string;
-  /** Kilometres from the searched postcode, when one was given. */
+  lat: number;
+  lng: number;
+  /** Shop chain hosting the locker, e.g. "maxima"; logo at /logos/brand-<brand>.png. */
+  brand?: string;
+  /** Carrier logo key; logo at /logos/carrier-<carrierLogo>.png. */
+  carrierLogo?: string;
+  /** Kilometres from the searched postcode or point, when one was given. */
   distanceKm?: number;
 }
 
@@ -18,7 +25,21 @@ export function fold(text: string): string {
 }
 
 export function toResult(l: Locker): LockerResult {
-  return { id: formatLockerId(l), network: l.network, name: l.name, address: l.address, city: l.city, zip: l.zip };
+  const result: LockerResult = {
+    id: formatLockerId(l),
+    network: l.network,
+    name: l.name,
+    address: l.address,
+    city: l.city,
+    zip: l.zip,
+    lat: l.lat,
+    lng: l.lng,
+  };
+  const brand = detectBrand(l.name);
+  if (brand) result.brand = brand;
+  const carrierLogo = carrierLogoKey(l.network);
+  if (carrierLogo) result.carrierLogo = carrierLogo;
+  return result;
 }
 
 /**
@@ -28,7 +49,7 @@ export function toResult(l: Locker): LockerResult {
  */
 export function searchLockers(
   lockers: Locker[],
-  options: { q?: string | null; zip?: string | null; limit?: number; locateIn?: Locker[] },
+  options: { q?: string | null; zip?: string | null; near?: Point | null; limit?: number; locateIn?: Locker[] },
 ): LockerResult[] {
   const words = fold(options.q ?? "").split(/[\s,]+/).filter(Boolean);
   let matches = words.length
@@ -38,7 +59,8 @@ export function searchLockers(
       })
     : lockers;
 
-  const from = options.zip ? locateBuyer(options.locateIn ?? lockers, { zip: options.zip }) : null;
+  const from =
+    options.near ?? (options.zip ? locateBuyer(options.locateIn ?? lockers, { zip: options.zip }) : null);
   if (from) {
     matches = [...matches].sort((a, b) => distanceKm(from, a) - distanceKm(from, b));
   } else {
