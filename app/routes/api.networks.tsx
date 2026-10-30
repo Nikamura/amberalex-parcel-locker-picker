@@ -1,7 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { getShopSettings, networkCounts } from "../lockers/repo.server";
-import { carrierLogoKey } from "../lockers/brands";
-import { networkSettings, networkShort } from "../lockers/settings";
+import { widgetConfig } from "../lockers/widget-config.server";
 
 const headers = {
   "Content-Type": "application/json",
@@ -9,33 +7,13 @@ const headers = {
   "Cache-Control": "public, max-age=60",
 };
 
-// Locker types a shop offers, for the cart picker.
+// Locker types a shop offers, for the cart picker. The theme embed normally inlines
+// this from an app-data metafield; this is the fallback until that is published.
 // GET /api/networks?shop=example.myshopify.com
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = new URL(request.url).searchParams.get("shop") ?? "";
   if (!/^[a-z0-9-]+\.myshopify\.com$/.test(shop)) {
     return new Response(JSON.stringify({ error: "shop required" }), { status: 400, headers });
   }
-  const { settings, currency } = await getShopSettings(shop);
-  if (!settings.enabled) return new Response(JSON.stringify({ enabled: false }), { headers });
-
-  const present = new Set((await networkCounts(settings.countries)).map((c) => c.network));
-  const networks = [...present]
-    .filter((n) => networkSettings(settings, n).enabled)
-    .sort()
-    .map((network) => {
-      const { label, price } = networkSettings(settings, network);
-      return { network, label, short: networkShort(network), price, carrierLogo: carrierLogoKey(network) };
-    });
-  return new Response(
-    JSON.stringify({
-      enabled: true,
-      testMode: Boolean(settings.testMarker),
-      countries: settings.countries,
-      currency,
-      combineNetworks: settings.combineNetworks,
-      networks,
-    }),
-    { headers },
-  );
+  return new Response(JSON.stringify(await widgetConfig(shop)), { headers });
 };

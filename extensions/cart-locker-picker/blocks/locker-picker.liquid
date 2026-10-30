@@ -9,6 +9,8 @@
     shop: {{ shop.permanent_domain | json }},
     locale: {{ request.locale.iso_code | json }},
     country: {{ localization.country.iso_code | json }},
+    // Published by the app on settings save, so page views need no request to it.
+    config: {{ app.metafields.plp.widget.value | json }},
   };
 </script>
 <link rel="stylesheet" href="{{ 'plp-cart.css' | asset_url }}">

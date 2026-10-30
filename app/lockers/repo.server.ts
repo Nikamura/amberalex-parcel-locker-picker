@@ -1,59 +1,81 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import db from "../db.server";
 import { lockerSnapshot, lockers, shopSettings, syncRuns } from "../db/schema";
 import * as cat from "./catalogue";
-import { buildCatalogue, fromSnapshot, type Catalogue, type SearchOptions } from "./catalogue";
+import { parseSnapshot, toCountry, type Country, type SearchOptions } from "./catalogue";
 import type { LockerResult } from "./search";
 import { defaultSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
 const CHECK_EVERY_MS = 5 * 60 * 1000;
 
-let cached: { version: string; catalogue: Catalogue } | null = null;
+let version: string | null | undefined;
 let checkedAt = 0;
-let pending: Promise<Catalogue> | null = null;
+let checking: Promise<void> | null = null;
+const countries = new Map<string, Promise<Country>>();
 
-async function load(): Promise<Catalogue> {
-  const head = await db.select({ version: sql<string | null>`max(${lockerSnapshot.version})` }).from(lockerSnapshot).get();
-  const version = head?.version ?? null;
-  if (cached && cached.version === version) return cached.catalogue;
-  // No snapshot yet (before the first sync after this table appeared): read the table once.
-  const list = version
-    ? fromSnapshot(await db.select({ countryCode: lockerSnapshot.countryCode, data: lockerSnapshot.data }).from(lockerSnapshot).all())
-    : await db.select().from(lockers).all();
-  cached = { version: version ?? "", catalogue: buildCatalogue(list) };
-  return cached.catalogue;
-}
-
-/** The in-memory catalogue, re-checked against D1 at most every few minutes. */
-async function catalogue(): Promise<Catalogue> {
-  if (cached && Date.now() - checkedAt < CHECK_EVERY_MS) return cached.catalogue;
-  pending ??= load()
-    .then((c) => {
+/** Drops cached countries once a newer sync has landed; costs one tiny query every few minutes. */
+async function checkVersion() {
+  if (version !== undefined && Date.now() - checkedAt < CHECK_EVERY_MS) return;
+  checking ??= db
+    .select({ version: sql<string | null>`max(${lockerSnapshot.version})` })
+    .from(lockerSnapshot)
+    .get()
+    .then((row) => {
+      const latest = row?.version ?? null;
+      if (latest !== version) countries.clear();
+      version = latest;
       checkedAt = Date.now();
-      return c;
     })
     .finally(() => {
-      pending = null;
+      checking = null;
     });
+  return checking;
+}
+
+async function loadCountry(code: string): Promise<Country> {
+  if (version) {
+    const row = await db.select({ data: lockerSnapshot.data }).from(lockerSnapshot).where(eq(lockerSnapshot.countryCode, code)).get();
+    return row ? parseSnapshot(code, row.data) : [];
+  }
+  // No snapshot yet (before the first sync after this table appeared).
+  return toCountry(await db.select().from(lockers).where(eq(lockers.countryCode, code)).all());
+}
+
+/** A country's lockers from Worker memory, loaded from D1 on first use. */
+async function country(code: string): Promise<Country> {
+  await checkVersion();
+  let pending = countries.get(code);
+  if (!pending) {
+    pending = loadCountry(code);
+    countries.set(code, pending);
+    pending.catch(() => countries.delete(code));
+  }
   return pending;
 }
 
+/** Primary-key lookup: one row read, no need to load the country. */
 export async function findLocker(source: string, externalId: string): Promise<Locker | undefined> {
-  return cat.findLocker(await catalogue(), source, externalId);
+  return db
+    .select()
+    .from(lockers)
+    .where(and(eq(lockers.source, source), eq(lockers.externalId, externalId)))
+    .get();
 }
 
 export async function networksInCountry(countryCode: string): Promise<string[]> {
-  return cat.networksInCountry(await catalogue(), countryCode);
+  return cat.networksInCountry(await country(countryCode));
 }
 
-export async function networkCounts(countries: string[]) {
-  return cat.networkCounts(await catalogue(), countries);
+export async function networkCounts(countryCodes: string[]) {
+  const unique = [...new Set(countryCodes)];
+  const lists = await Promise.all(unique.map(country));
+  return unique.flatMap((countryCode, i) => cat.networkCounts(lists[i]).map((c) => ({ ...c, countryCode })));
 }
 
 /** Lockers matching every word of `q`, nearest to `near`/`zip` first, else alphabetical. */
-export async function searchLockers(options: SearchOptions): Promise<LockerResult[]> {
-  return cat.searchLockers(await catalogue(), options);
+export async function searchLockers(options: SearchOptions & { country: string }): Promise<LockerResult[]> {
+  return cat.searchLockers(await country(options.country), options);
 }
 
 export async function lastSyncs() {
@@ -82,6 +104,6 @@ export async function deleteShopSettings(shop: string) {
 }
 
 /** Every locker of the given networks as [id, lat, lng, networkIndex], for map markers. */
-export async function lockerPoints(country: string, networks: string[]) {
-  return cat.lockerPoints(await catalogue(), country, networks);
+export async function lockerPoints(countryCode: string, networks: string[]) {
+  return cat.lockerPoints(await country(countryCode), networks);
 }

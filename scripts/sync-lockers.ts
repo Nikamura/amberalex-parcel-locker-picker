@@ -27,7 +27,7 @@ const sql = (value: string | number | null) =>
 export function snapshotSql(version: string): string {
   return (
     "INSERT OR REPLACE INTO locker_snapshot (country_code,version,data)" +
-    ` SELECT country_code, ${sql(version)}, json_group_array(json_array(source,external_id,network,name,address,city,zip,lat,lng,comment))` +
+    ` SELECT country_code, ${sql(version)}, json_group_array(json_array(source,external_id,network,name,address,city,zip,lat,lng,comment,search))` +
     " FROM lockers GROUP BY country_code;\n" +
     `DELETE FROM locker_snapshot WHERE version <> ${sql(version)};`
   );

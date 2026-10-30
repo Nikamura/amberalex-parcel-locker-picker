@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, AppLoadContext, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
-import { boundary } from "@shopify/shopify-app-react-router/server";
+import { boundary, type AdminApiContext } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { ensureCarrierService } from "../carrier/carrier-service.server";
 import {
@@ -13,9 +13,20 @@ import {
 } from "../lockers/repo.server";
 import { carrierLogoKey } from "../lockers/brands";
 import { networkSettings, networkShort, type Settings } from "../lockers/settings";
+import { publishWidgetConfig } from "../lockers/widget-config.server";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+/** Keeps the theme embed's inlined config current; never blocks or fails the page. */
+function publishInBackground(context: AppLoadContext, admin: AdminApiContext, shop: string) {
+  context.cloudflare.ctx.waitUntil(
+    publishWidgetConfig(admin, shop).catch((error) => console.error(`[widget] ${shop}: publish failed`, error)),
+  );
+}
+
+export const loader = async ({ request, context }: LoaderFunctionArgs) => {
+  const { session, admin } = await authenticate.admin(request);
+  // Also backfills shops that saved settings before the metafield existed, and picks
+  // up locker types that appeared in the catalogue since the last save.
+  publishInBackground(context, admin, session.shop);
   const { settings, currency, carrierServiceId } = await getShopSettings(session.shop);
   const counts = await networkCounts(settings.countries);
   const networks = [...new Set(counts.map((c) => c.network))]
@@ -29,7 +40,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // Offered types first, then by size.
     .sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.lockers - a.lockers);
   const store = session.shop.replace(/\.myshopify\.com$/, "");
-  const admin = `https://admin.shopify.com/store/${store}`;
+  const adminUrl = `https://admin.shopify.com/store/${store}`;
   return {
     settings,
     currency,
@@ -38,9 +49,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     syncs: await lastSyncs(),
     appUrl: process.env.SHOPIFY_APP_URL ?? "",
     links: {
-      themeEmbed: `${admin}/themes/current/editor?context=apps&activateAppId=${process.env.SHOPIFY_API_KEY}/locker-picker`,
-      checkoutEditor: `${admin}/settings/checkout/editor?page=thank-you`,
-      shipping: `${admin}/settings/shipping`,
+      themeEmbed: `${adminUrl}/themes/current/editor?context=apps&activateAppId=${process.env.SHOPIFY_API_KEY}/locker-picker`,
+      checkoutEditor: `${adminUrl}/settings/checkout/editor?page=thank-you`,
+      shipping: `${adminUrl}/settings/shipping`,
     },
   };
 };
@@ -50,7 +61,7 @@ const num = (v: FormDataEntryValue | null) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const form = await request.formData();
   const previous = await getShopSettings(session.shop);
@@ -85,9 +96,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       settings.enabled,
     );
     await saveShopSettings(session.shop, { settings, carrierServiceId, currency });
+    publishInBackground(context, admin, session.shop);
     return { ok: true as const };
   } catch (error) {
     await saveShopSettings(session.shop, { settings, carrierServiceId: previous.carrierServiceId, currency: previous.currency });
+    publishInBackground(context, admin, session.shop);
     return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
   }
 };

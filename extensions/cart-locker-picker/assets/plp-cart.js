@@ -515,16 +515,25 @@
     } catch (e) { chosen = null; }
   }
 
+  // Inlined by the theme embed; the request is only a fallback until the app publishes it.
+  function loadConfig() {
+    if (cfg.config) return Promise.resolve(cfg.config);
+    return fetch(APP + '/api/networks?shop=' + encodeURIComponent(cfg.shop)).then(function (r) { return r.json(); });
+  }
+
+  function applies(c) {
+    if (!c || !c.enabled) return false;
+    if (c.testMode && !localStorage.getItem('plptest')) return false;
+    return !(cfg.country && c.countries && c.countries.indexOf(cfg.country) < 0);
+  }
+
   function boot() {
-    Promise.all([
-      fetch(APP + '/api/networks?shop=' + encodeURIComponent(cfg.shop)).then(function (r) { return r.json(); }),
-      fetch('/cart.js').then(function (r) { return r.json(); }),
-    ])
+    // Skip all work (including /cart.js) on shops where the picker is off.
+    if (cfg.config && !applies(cfg.config)) return;
+    Promise.all([loadConfig(), fetch('/cart.js').then(function (r) { return r.json(); })])
       .then(function (res) {
         config = res[0];
-        if (!config || !config.enabled) return;
-        if (config.testMode && !localStorage.getItem('plptest')) return;
-        if (cfg.country && config.countries && config.countries.indexOf(cfg.country) < 0) return;
+        if (!applies(config)) return;
         readChosen(res[1]);
         mount();
         var pending = null;
