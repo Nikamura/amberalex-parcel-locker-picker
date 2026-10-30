@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # One-off: redeploy right after D1's daily limit resets on 2026-10-31 (the push
+  # deploys failed while D1 was blocked). Remove after it has run.
+  schedule:
+    - cron: "7 0 31 10 *"
 
 concurrency:
   group: deploy
