@@ -15,6 +15,13 @@
       "when": 1793296127299,
       "tag": "0001_d1_search",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793345924385,
+      "tag": "0002_locker_snapshot",
+      "breakpoints": true
     }
   ]
 }

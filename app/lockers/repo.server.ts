@@ -1,87 +1,59 @@
-import { and, asc, eq, inArray, like, sql, type SQL } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import db from "../db.server";
-import { lockers, shopSettings, syncRuns } from "../db/schema";
-import { distanceKm, normalizeZip, type Point } from "./nearest";
-import { fold, toResult, type LockerResult } from "./search";
+import { lockerSnapshot, lockers, shopSettings, syncRuns } from "../db/schema";
+import * as cat from "./catalogue";
+import { buildCatalogue, fromSnapshot, type Catalogue, type SearchOptions } from "./catalogue";
+import type { LockerResult } from "./search";
 import { defaultSettings, type Settings } from "./settings";
 import type { Locker } from "./types";
 
+const CHECK_EVERY_MS = 5 * 60 * 1000;
+
+let cached: { version: string; catalogue: Catalogue } | null = null;
+let checkedAt = 0;
+let pending: Promise<Catalogue> | null = null;
+
+async function load(): Promise<Catalogue> {
+  const head = await db.select({ version: sql<string | null>`max(${lockerSnapshot.version})` }).from(lockerSnapshot).get();
+  const version = head?.version ?? null;
+  if (cached && cached.version === version) return cached.catalogue;
+  // No snapshot yet (before the first sync after this table appeared): read the table once.
+  const list = version
+    ? fromSnapshot(await db.select({ countryCode: lockerSnapshot.countryCode, data: lockerSnapshot.data }).from(lockerSnapshot).all())
+    : await db.select().from(lockers).all();
+  cached = { version: version ?? "", catalogue: buildCatalogue(list) };
+  return cached.catalogue;
+}
+
+/** The in-memory catalogue, re-checked against D1 at most every few minutes. */
+async function catalogue(): Promise<Catalogue> {
+  if (cached && Date.now() - checkedAt < CHECK_EVERY_MS) return cached.catalogue;
+  pending ??= load()
+    .then((c) => {
+      checkedAt = Date.now();
+      return c;
+    })
+    .finally(() => {
+      pending = null;
+    });
+  return pending;
+}
+
 export async function findLocker(source: string, externalId: string): Promise<Locker | undefined> {
-  return db
-    .select()
-    .from(lockers)
-    .where(and(eq(lockers.source, source), eq(lockers.externalId, externalId)))
-    .get();
+  return cat.findLocker(await catalogue(), source, externalId);
 }
 
 export async function networksInCountry(countryCode: string): Promise<string[]> {
-  const rows = await db
-    .selectDistinct({ network: lockers.network })
-    .from(lockers)
-    .where(eq(lockers.countryCode, countryCode))
-    .all();
-  return rows.map((r) => r.network).sort();
+  return cat.networksInCountry(await catalogue(), countryCode);
 }
 
 export async function networkCounts(countries: string[]) {
-  if (countries.length === 0) return [];
-  return db
-    .select({ network: lockers.network, countryCode: lockers.countryCode, count: sql<number>`count(*)` })
-    .from(lockers)
-    .where(inArray(lockers.countryCode, countries))
-    .groupBy(lockers.network, lockers.countryCode)
-    .all();
-}
-
-/**
- * Approximate a postcode's position as the centre of lockers sharing the longest
- * postcode prefix (all networks; some carry non-postal zips).
- */
-export async function locateZip(countryCode: string, zip: string | null | undefined): Promise<Point | null> {
-  const z = normalizeZip(zip);
-  for (let len = z.length; len >= 2; len--) {
-    const row = await db
-      .select({ lat: sql<number>`avg(${lockers.lat})`, lng: sql<number>`avg(${lockers.lng})`, n: sql<number>`count(*)` })
-      .from(lockers)
-      .where(and(eq(lockers.countryCode, countryCode), like(lockers.zip, `${z.slice(0, len)}%`)))
-      .get();
-    if (row && row.n > 0) return { lat: row.lat, lng: row.lng };
-  }
-  return null;
-}
-
-export interface SearchOptions {
-  country: string;
-  networks?: string[];
-  q?: string | null;
-  zip?: string | null;
-  near?: Point | null;
-  limit?: number;
+  return cat.networkCounts(await catalogue(), countries);
 }
 
 /** Lockers matching every word of `q`, nearest to `near`/`zip` first, else alphabetical. */
 export async function searchLockers(options: SearchOptions): Promise<LockerResult[]> {
-  const from = options.near ?? (options.zip ? await locateZip(options.country, options.zip) : null);
-  const where: SQL[] = [eq(lockers.countryCode, options.country)];
-  if (options.networks?.length) where.push(inArray(lockers.network, options.networks));
-  for (const word of fold(options.q ?? "").split(/[\s,]+/).filter(Boolean)) {
-    where.push(like(lockers.search, `%${word}%`));
-  }
-
-  const query = db.select().from(lockers).where(and(...where));
-  const ordered = from
-    ? query.orderBy(
-        // Equirectangular approximation, good enough for ranking within a country.
-        sql`(${lockers.lat} - ${from.lat}) * (${lockers.lat} - ${from.lat}) + ((${lockers.lng} - ${from.lng}) * ${Math.cos((from.lat * Math.PI) / 180)}) * ((${lockers.lng} - ${from.lng}) * ${Math.cos((from.lat * Math.PI) / 180)})`,
-      )
-    : query.orderBy(asc(lockers.city), asc(lockers.name));
-  const rows = await ordered.limit(Math.min(50, options.limit ?? 30)).all();
-
-  return rows.map((l) => {
-    const result = toResult(l);
-    if (from) result.distanceKm = Math.round(distanceKm(from, l) * 10) / 10;
-    return result;
-  });
+  return cat.searchLockers(await catalogue(), options);
 }
 
 export async function lastSyncs() {
@@ -111,11 +83,5 @@ export async function deleteShopSettings(shop: string) {
 
 /** Every locker of the given networks as [id, lat, lng, networkIndex], for map markers. */
 export async function lockerPoints(country: string, networks: string[]) {
-  const rows = await db
-    .select({ source: lockers.source, externalId: lockers.externalId, network: lockers.network, lat: lockers.lat, lng: lockers.lng })
-    .from(lockers)
-    .where(and(eq(lockers.countryCode, country), inArray(lockers.network, networks)))
-    .all();
-  const round = (n: number) => Math.round(n * 1e5) / 1e5;
-  return rows.map((r) => [`${r.source}:${r.externalId}`, round(r.lat), round(r.lng), networks.indexOf(r.network)] as const);
+  return cat.lockerPoints(await catalogue(), country, networks);
 }

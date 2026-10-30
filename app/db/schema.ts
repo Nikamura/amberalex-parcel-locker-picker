@@ -69,3 +69,11 @@ export const syncRuns = sqliteTable("sync_runs", {
   count: integer("count").notNull(),
   error: text("error"),
 });
+
+// The catalogue as one JSON row per country, rebuilt by every sync. Workers load
+// it into memory with a handful of row reads instead of scanning `lockers`.
+export const lockerSnapshot = sqliteTable("locker_snapshot", {
+  countryCode: text("country_code").primaryKey(),
+  version: text("version").notNull(),
+  data: text("data").notNull(),
+});

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { verifyShopifyHmac } from "../app/carrier/hmac";
 import { createHmac } from "node:crypto";
+import * as cat from "../app/lockers/catalogue";
 import { normalizeZip } from "../app/lockers/nearest";
 import { buildRates, type RateRequest } from "../app/lockers/rates";
 import { searchText } from "../app/lockers/search";
@@ -113,6 +114,54 @@ describe("buildRates", () => {
     expect(rates.every((r) => r.total_price === "0")).toBe(true);
     const below = buildRates(request({}, 9_999), settings({ freeShippingOver: 100 }), inLT, "EUR");
     expect(below[1].total_price).toBe("299");
+  });
+});
+
+describe("in-memory catalogue", () => {
+  const c = cat.buildCatalogue(lockers);
+
+  it("round-trips the D1 snapshot format", () => {
+    const rows = [...c.byCountry].map(([countryCode, entries]) => ({
+      countryCode,
+      data: JSON.stringify(
+        entries.map(({ locker: l }) => [l.source, l.externalId, l.network, l.name, l.address, l.city, l.zip, l.lat, l.lng, l.comment]),
+      ),
+    }));
+    expect(cat.fromSnapshot(rows)).toEqual(lockers);
+  });
+
+  it("looks up, lists and counts networks", () => {
+    expect(cat.findLocker(c, "alsendo", "5")?.city).toBe("Kaunas");
+    expect(cat.findLocker(c, "alsendo", "99")).toBeUndefined();
+    expect(cat.networksInCountry(c, "LT")).toEqual(["dpd", "omniva"]);
+    expect(cat.networksInCountry(c, "LV")).toEqual([]);
+    expect(cat.networkCounts(c, ["LT", "LV"])).toEqual(
+      expect.arrayContaining([
+        { network: "omniva", countryCode: "LT", count: 3 },
+        { network: "dpd", countryCode: "LT", count: 2 },
+      ]),
+    );
+  });
+
+  it("locates a postcode by its longest shared prefix", () => {
+    expect(cat.locateZip(c, "LT", "LT-44199")).toEqual({ lat: 54.898, lng: 23.903 });
+    expect(cat.locateZip(c, "LT", "99999")).toBeNull();
+  });
+
+  it("searches by words, network and distance", () => {
+    expect(cat.searchLockers(c, { country: "LT", zip: "01101" }).map((l) => l.id)).toEqual([
+      "alsendo:1",
+      "alsendo:4",
+      "alsendo:2",
+      "alsendo:3",
+      "alsendo:5",
+    ]);
+    expect(cat.searchLockers(c, { country: "LT", networks: ["dpd"], q: "kaunas 44" }).map((l) => l.id)).toEqual(["alsendo:5"]);
+    expect(cat.searchLockers(c, { country: "LT", q: "gatve", limit: 2 }).map((l) => l.city)).toEqual(["Kaunas", "Vilnius"]);
+    expect(cat.lockerPoints(c, "LT", ["dpd"])).toEqual([
+      ["alsendo:4", 54.688, 25.281, 0],
+      ["alsendo:5", 54.898, 23.903, 0],
+    ]);
   });
 });
 

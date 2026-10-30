@@ -19,6 +19,20 @@ const ROWS_PER_INSERT = 100;
 const sql = (value: string | number | null) =>
   value === null ? "NULL" : typeof value === "number" ? String(value) : `'${value.replaceAll("'", "''")}'`;
 
+/**
+ * Rebuilds locker_snapshot (one JSON row per country) from the lockers table; the
+ * Worker loads these instead of scanning lockers. Rows are replaced in place and
+ * stale countries dropped after, so readers never see a partial catalogue.
+ */
+export function snapshotSql(version: string): string {
+  return (
+    "INSERT OR REPLACE INTO locker_snapshot (country_code,version,data)" +
+    ` SELECT country_code, ${sql(version)}, json_group_array(json_array(source,external_id,network,name,address,city,zip,lat,lng,comment))` +
+    " FROM lockers GROUP BY country_code;\n" +
+    `DELETE FROM locker_snapshot WHERE version <> ${sql(version)};`
+  );
+}
+
 export function buildSyncSql(sourceId: string, list: Locker[], now: string): string {
   const statements: string[] = [];
   for (let i = 0; i < list.length; i += ROWS_PER_INSERT) {
@@ -36,6 +50,7 @@ export function buildSyncSql(sourceId: string, list: Locker[], now: string): str
   // Rows are replaced in place, so the catalogue is never empty mid-import;
   // anything the source no longer lists is dropped last.
   statements.push(`DELETE FROM lockers WHERE source = ${sql(sourceId)} AND updated_at <> ${sql(now)};`);
+  statements.push(snapshotSql(now));
   statements.push(
     `INSERT INTO sync_runs (source,finished_at,count,error) VALUES (${sql(sourceId)},${sql(now)},${list.length},NULL)` +
       ` ON CONFLICT(source) DO UPDATE SET finished_at = excluded.finished_at, count = excluded.count, error = NULL;`,
