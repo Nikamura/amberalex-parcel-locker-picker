@@ -3,7 +3,7 @@ import { authenticate, unauthenticated } from "../shopify.server";
 import { choiceFromShippingCodes, type OrderSnapshot } from "../lockers/order-update";
 import { saveChosenLocker } from "../lockers/order-sync.server";
 import { autoCreateShipment } from "../alsendo/shipments.server";
-import { findLocker, getShopSettings, networksInCountry, searchLockers } from "../lockers/repo.server";
+import { findLocker, getShopSettings, markThankYouSeen, networksInCountry, searchLockers } from "../lockers/repo.server";
 import { toResult } from "../lockers/search";
 import { parseLockerId } from "../lockers/service-code";
 import { carrierLogoKey } from "../lockers/brands";
@@ -120,9 +120,11 @@ async function describe(shop: string, order: AdminOrder) {
   };
 }
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   const { sessionToken, cors } = await authenticate.public.checkout(request);
   const shop = shopFromDest(sessionToken.dest);
+  // Any authenticated call proves the block is placed on the thank-you page.
+  context.cloudflare.ctx.waitUntil(markThankYouSeen(shop).catch((error) => console.error(`[setup] ${shop}`, error)));
   const url = new URL(request.url);
   try {
     const { order } = await loadOrder(shop, url.searchParams.get("orderId") ?? "", url.searchParams.get("number") ?? "");

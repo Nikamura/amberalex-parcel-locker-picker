@@ -88,7 +88,19 @@ export async function getShopSettings(shop: string) {
     settings: withDefaults(row?.settings as Partial<Settings> | null),
     carrierServiceId: row?.carrierServiceId ?? null,
     currency: row?.currency ?? null,
+    thankYouSeenAt: row?.thankYouSeenAt ?? null,
   };
+}
+
+/** Records that the thank-you block is live; writes at most once an hour. */
+export async function markThankYouSeen(shop: string) {
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - 3_600_000).toISOString();
+  await db
+    .update(shopSettings)
+    .set({ thankYouSeenAt: now.toISOString() })
+    .where(and(eq(shopSettings.shop, shop), sql`coalesce(${shopSettings.thankYouSeenAt}, '') < ${hourAgo}`))
+    .run();
 }
 
 export async function saveShopSettings(

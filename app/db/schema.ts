@@ -60,6 +60,8 @@ export const shopSettings = sqliteTable("shop_settings", {
   settings: text("settings", { mode: "json" }).notNull(),
   carrierServiceId: text("carrier_service_id"),
   currency: text("currency"),
+  /** Last time the thank-you block called the app; shows it is placed. */
+  thankYouSeenAt: text("thank_you_seen_at"),
   updatedAt: text("updated_at").notNull(),
 });
 

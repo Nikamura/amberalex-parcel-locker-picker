@@ -1,0 +1,1 @@
+ALTER TABLE `shop_settings` ADD `thank_you_seen_at` text;

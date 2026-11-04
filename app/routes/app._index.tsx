@@ -14,6 +14,7 @@ import {
 import { carrierLogoKey } from "../lockers/brands";
 import { alsendoService, networkSettings, networkShort, type Settings } from "../lockers/settings";
 import { publishWidgetConfig } from "../lockers/widget-config.server";
+import { cartEmbedActive } from "../lockers/setup-check.server";
 
 /** Keeps the theme embed's inlined config current; never blocks or fails the page. */
 function publishInBackground(context: AppLoadContext, admin: AdminApiContext, shop: string) {
@@ -27,7 +28,8 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
   // Also backfills shops that saved settings before the metafield existed, and picks
   // up locker types that appeared in the catalogue since the last save.
   publishInBackground(context, admin, session.shop);
-  const { settings, currency, carrierServiceId } = await getShopSettings(session.shop);
+  const cartEmbed = cartEmbedActive(session.shop);
+  const { settings, currency, carrierServiceId, thankYouSeenAt } = await getShopSettings(session.shop);
   const counts = await networkCounts(settings.countries);
   const networks = [...new Set(counts.map((c) => c.network))]
     .map((network) => ({
@@ -46,6 +48,7 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
     settings,
     currency,
     carrierServiceId,
+    setup: { cartEmbed: await cartEmbed, thankYouSeenAt },
     networks,
     syncs: await lastSyncs(),
     appUrl: process.env.SHOPIFY_APP_URL ?? "",
@@ -109,7 +112,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const { settings, currency, carrierServiceId, networks, syncs, appUrl, links } = useLoaderData<typeof loader>();
+  const { settings, currency, carrierServiceId, setup, networks, syncs, appUrl, links } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const saving = useNavigation().state === "submitting";
   const shopify = useAppBridge();
@@ -273,12 +276,18 @@ export default function Index() {
             <SetupStep done={Boolean(carrierServiceId)} title="Pristatymo kainos">
               {carrierServiceId ? "Užregistruotos Shopify." : "Išsaugokite šį puslapį, kad jos būtų užregistruotos."}
             </SetupStep>
-            <SetupStep title="Pasirinkimas krepšelyje">
-              Temoje įjunkite programėlės įterpinį „Paštomatai“.{" "}
+            <SetupStep done={setup.cartEmbed ?? undefined} title="Pasirinkimas krepšelyje">
+              {setup.cartEmbed
+                ? "Įterpinys „Paštomatai“ įjungtas parduotuvės temoje."
+                : setup.cartEmbed === false
+                  ? "Temoje įjunkite programėlės įterpinį „Paštomatai“."
+                  : "Nepavyko patikrinti parduotuvės. Temoje turi būti įjungtas įterpinys „Paštomatai“."}{" "}
               <s-link href={links.themeEmbed} target="_top">Atidaryti temos redaktorių</s-link>
             </SetupStep>
-            <SetupStep title="Padėkos puslapis">
-              Padėkos puslapyje pridėkite programėlės bloką „Parcel locker choice“, pvz., skiltyje Main po patvirtinimu.{" "}
+            <SetupStep done={setup.thankYouSeenAt ? true : undefined} title="Padėkos puslapis">
+              {setup.thankYouSeenAt
+                ? `Blokas veikia, paskutinį kartą rodytas ${new Date(setup.thankYouSeenAt).toLocaleString("lt-LT", { timeZone: "Europe/Vilnius" })}.`
+                : "Padėkos puslapyje pridėkite programėlės bloką „Parcel locker choice“, pvz., skiltyje Main po patvirtinimu. Pažymėsime atlikta po pirmo užsakymo su juo."}{" "}
               <s-link href={links.checkoutEditor} target="_top">Atidaryti atsiskaitymo redaktorių</s-link>
             </SetupStep>
             <SetupStep done={live} title="Įjungimas visiems">
