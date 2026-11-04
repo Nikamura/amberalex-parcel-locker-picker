@@ -18,8 +18,9 @@ export default function App() {
   return (
     <AppProvider apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Nustatymai</s-link>
-        <s-link href="/app/shipments">Siuntos</s-link>
+        {/* rel="home": the app title in the admin opens this page, not the public landing page. */}
+        <a href="/app" rel="home">Nustatymai</a>
+        <a href="/app/shipments">Siuntos</a>
       </s-app-nav>
       <Outlet />
     </AppProvider>

@@ -1,9 +1,11 @@
-import type { LoaderFunctionArgs } from "react-router";
+import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
 
 import { login } from "../../shopify.server";
 
 import styles from "./styles.module.css";
+
+export const meta: MetaFunction = () => [{ title: "Paštomatai" }];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -21,34 +23,32 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Paštomatai</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Paštomato pasirinkimas Shopify parduotuvei ir Alsendo siuntų kūrimas vienoje vietoje.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
             <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
+              <span>Parduotuvės adresas</span>
+              <input className={styles.input} type="text" name="shop" placeholder="parduotuve.myshopify.com" />
             </label>
             <button className={styles.button} type="submit">
-              Log in
+              Prisijungti
             </button>
           </Form>
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Krepšelyje ir atsiskaitant.</strong> Pirkėjas pasirenka DPD, Omniva, Venipak ar SmartPosti
+            paštomatą žemėlapyje dar prieš apmokėdamas.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Po apmokėjimo.</strong> Jei paštomatas dar nepasirinktas, padėkos puslapis jo paprašo.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Alsendo siuntos.</strong> Siunta į pasirinktą paštomatą sukuriama automatiškai, o atšaukus užsakymą
+            – atšaukiama.
           </li>
         </ul>
       </div>

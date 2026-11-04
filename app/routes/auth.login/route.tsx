@@ -30,17 +30,17 @@ export default function Auth() {
       <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
       <s-page>
         <Form method="post">
-        <s-section heading="Log in">
+        <s-section heading="Prisijungimas">
           <s-text-field
             name="shop"
-            label="Shop domain"
-            details="example.myshopify.com"
+            label="Parduotuvės adresas"
+            details="parduotuve.myshopify.com"
             value={shop}
             onChange={(e) => setShop(e.currentTarget.value)}
             autocomplete="on"
             error={errors.shop}
           ></s-text-field>
-          <s-button type="submit">Log in</s-button>
+          <s-button type="submit">Prisijungti</s-button>
         </s-section>
         </Form>
       </s-page>
