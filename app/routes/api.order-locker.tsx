@@ -2,6 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate, unauthenticated } from "../shopify.server";
 import { choiceFromShippingCodes, type OrderSnapshot } from "../lockers/order-update";
 import { saveChosenLocker } from "../lockers/order-sync.server";
+import { autoCreateShipment } from "../alsendo/shipments.server";
 import { findLocker, getShopSettings, networksInCountry, searchLockers } from "../lockers/repo.server";
 import { toResult } from "../lockers/search";
 import { parseLockerId } from "../lockers/service-code";
@@ -141,7 +142,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { sessionToken, cors } = await authenticate.public.checkout(request);
   const shop = shopFromDest(sessionToken.dest);
   try {
@@ -161,6 +162,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       attributes: order.customAttributes.map((a) => ({ name: a.key, value: a.value ?? "" })),
     };
     await saveChosenLocker(admin, snapshot, locker, info.settings);
+    context.cloudflare.ctx.waitUntil(
+      autoCreateShipment(admin, shop, order.id, locker.network, info.settings).catch((error) =>
+        console.error(`[alsendo] ${shop}: auto-create failed for ${order.id}`, error),
+      ),
+    );
     return cors(Response.json({ ok: true, current: toResult(locker) }));
   } catch (error) {
     if (error instanceof HttpError) return cors(Response.json({ error: error.message }, { status: error.status }));

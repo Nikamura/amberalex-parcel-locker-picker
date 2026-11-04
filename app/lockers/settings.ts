@@ -25,6 +25,48 @@ export interface Settings {
    * this text. Lets a live store test checkout without buyers seeing lockers.
    */
   testMarker: string | null;
+  alsendo: AlsendoSettings;
+}
+
+export interface AlsendoSender {
+  companyName: string;
+  contactName: string;
+  street: string;
+  city: string;
+  zip: string;
+  phone: string;
+  email: string;
+}
+
+export interface AlsendoSettings {
+  /** Create the Alsendo shipment as soon as an order has a locker. */
+  autoCreate: boolean;
+  /** Courier pickup address (Lithuania). */
+  sender: AlsendoSender;
+  /** Default parcel, cm and kg; the order's own weight wins when it has one. */
+  parcel: { x: number; y: number; z: number; weight: number };
+  /** Alsendo service code per locker network; networks without one get no shipment. */
+  services: Record<string, string>;
+}
+
+/**
+ * Courier pickup to parcel locker services on the Amber Alex Alsendo account.
+ * Alsendo has no LP Express locker service for this account. Omniva is S218
+ * (Alsendo's email said S224, which the API rejects for this account).
+ */
+export const DEFAULT_ALSENDO_SERVICES: Record<string, string> = {
+  dpd: "S240",
+  omniva: "S218",
+  venipak: "S217",
+};
+
+export function defaultAlsendoSettings(): AlsendoSettings {
+  return {
+    autoCreate: false,
+    sender: { companyName: "", contactName: "", street: "", city: "", zip: "", phone: "", email: "" },
+    parcel: { x: 30, y: 20, z: 15, weight: 1 },
+    services: { ...DEFAULT_ALSENDO_SERVICES },
+  };
 }
 
 export const NETWORK_LABELS: Record<string, string> = {
@@ -60,6 +102,7 @@ export function defaultSettings(): Settings {
     combinedLabel: "Parcel locker",
     freeShippingOver: null,
     testMarker: null,
+    alsendo: defaultAlsendoSettings(),
   };
 }
 
@@ -79,4 +122,21 @@ export function networkSettings(settings: Settings, network: string): NetworkSet
       price: 0,
     }
   );
+}
+
+/** Stored settings over the defaults; nested Alsendo fields are filled in one by one. */
+export function withDefaults(stored: Partial<Settings> | null | undefined): Settings {
+  const base = defaultSettings();
+  const alsendo = stored?.alsendo;
+  return {
+    ...base,
+    ...(stored ?? {}),
+    alsendo: {
+      ...base.alsendo,
+      ...(alsendo ?? {}),
+      sender: { ...base.alsendo.sender, ...(alsendo?.sender ?? {}) },
+      parcel: { ...base.alsendo.parcel, ...(alsendo?.parcel ?? {}) },
+      services: alsendo?.services ?? base.alsendo.services,
+    },
+  };
 }

@@ -77,3 +77,23 @@ export const lockerSnapshot = sqliteTable("locker_snapshot", {
   version: text("version").notNull(),
   data: text("data").notNull(),
 });
+
+// Alsendo shipments created for locker orders, one per order. `status` is
+// creating | created | failed | cancelled; a failed row can be retried.
+export const shipments = sqliteTable(
+  "shipments",
+  {
+    shop: text("shop").notNull(),
+    orderId: text("order_id").notNull(),
+    orderName: text("order_name"),
+    lockerId: text("locker_id"),
+    serviceCode: text("service_code"),
+    status: text("status").notNull(),
+    shipmentId: text("shipment_id"),
+    trackingNumber: text("tracking_number"),
+    error: text("error"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.shop, t.orderId] })],
+);

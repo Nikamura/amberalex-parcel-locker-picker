@@ -76,6 +76,8 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   }
   const freeOver = String(form.get("freeShippingOver") ?? "").trim();
   const settings: Settings = {
+    // Keeps settings edited on other pages (Alsendo shipments).
+    ...previous.settings,
     enabled: form.get("enabled") === "on",
     countries: String(form.get("countries") ?? "")
       .split(",")

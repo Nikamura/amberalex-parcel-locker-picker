@@ -3,8 +3,9 @@ import { authenticate } from "../shopify.server";
 import { choiceFromShippingCodes, snapshotFromWebhook, type OrderPayload } from "../lockers/order-update";
 import { markLockerPending, saveChosenLocker } from "../lockers/order-sync.server";
 import { findLocker, getShopSettings } from "../lockers/repo.server";
+import { autoCreateShipment } from "../alsendo/shipments.server";
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { shop, payload, admin } = await authenticate.webhook(request);
   const order = payload as OrderPayload;
   const choice = choiceFromShippingCodes((order.shipping_lines ?? []).map((l) => l.code));
@@ -23,6 +24,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return new Response();
     }
     await saveChosenLocker(admin, snapshot, locker, settings);
+    // After the response, so Shopify's webhook timeout never waits on Alsendo.
+    context.cloudflare.ctx.waitUntil(
+      autoCreateShipment(admin, shop, snapshot.id, locker.network, settings).catch((error) =>
+        console.error(`[alsendo] ${shop}: auto-create failed for ${snapshot.id}`, error),
+      ),
+    );
   } catch (error) {
     console.error(`[orders] ${shop}: could not record locker on ${snapshot.id}`, error);
   }

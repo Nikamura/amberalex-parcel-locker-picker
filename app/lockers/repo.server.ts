@@ -4,7 +4,7 @@ import { lockerSnapshot, lockers, shopSettings, syncRuns } from "../db/schema";
 import * as cat from "./catalogue";
 import { parseSnapshot, toCountry, type Country, type SearchOptions } from "./catalogue";
 import type { LockerResult } from "./search";
-import { defaultSettings, type Settings } from "./settings";
+import { withDefaults, type Settings } from "./settings";
 import type { Locker } from "./types";
 
 const CHECK_EVERY_MS = 5 * 60 * 1000;
@@ -85,7 +85,7 @@ export async function lastSyncs() {
 export async function getShopSettings(shop: string) {
   const row = await db.select().from(shopSettings).where(eq(shopSettings.shop, shop)).get();
   return {
-    settings: { ...defaultSettings(), ...((row?.settings as Partial<Settings>) ?? {}) },
+    settings: withDefaults(row?.settings as Partial<Settings> | null),
     carrierServiceId: row?.carrierServiceId ?? null,
     currency: row?.currency ?? null,
   };
