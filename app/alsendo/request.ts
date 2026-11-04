@@ -1,4 +1,4 @@
-import type { AlsendoSettings } from "../lockers/settings";
+import { alsendoService, type AlsendoSettings } from "../lockers/settings";
 import type { Locker } from "../lockers/types";
 
 // Builds the body of Alsendo's POST /api/v1/orders for a locker order.
@@ -65,16 +65,12 @@ export function missingSenderFields(settings: AlsendoSettings): string[] {
   return SENDER_REQUIRED.filter(([key]) => !settings.sender[key].trim()).map(([, label]) => label);
 }
 
-export function serviceCodeFor(settings: AlsendoSettings, network: string): string | null {
-  return settings.services[network]?.trim() || null;
-}
-
 export type BuildResult = { ok: true; body: AlsendoOrderRequest } | { ok: false; error: string };
 
 export function buildOrderRequest(settings: AlsendoSettings, locker: Locker, order: ShipmentOrder): BuildResult {
   if (locker.source !== "alsendo") return { ok: false, error: `Paštomatas ${locker.source}:${locker.externalId} nėra Alsendo paštomatas` };
-  const serviceCode = serviceCodeFor(settings, locker.network);
-  if (!serviceCode) return { ok: false, error: `Paštomatams ${locker.network} nenustatyta Alsendo paslauga` };
+  const serviceCode = alsendoService(locker.network);
+  if (!serviceCode) return { ok: false, error: `Alsendo nesiunčia į ${locker.network} paštomatus` };
   const countryId = ALSENDO_COUNTRY_IDS[locker.countryCode];
   if (!countryId) return { ok: false, error: `Alsendo siuntos į ${locker.countryCode} nepalaikomos` };
   const missing = missingSenderFields(settings);

@@ -5,20 +5,20 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { getShopSettings, networkCounts, saveShopSettings } from "../lockers/repo.server";
-import { networkShort, type AlsendoSettings } from "../lockers/settings";
+import { alsendoService, networkShort, type AlsendoSettings } from "../lockers/settings";
 import { alsendoConfigured } from "../alsendo/client.server";
-import { missingSenderFields, serviceCodeFor } from "../alsendo/request";
+import { missingSenderFields } from "../alsendo/request";
 import { cancelShipment, createShipment, recentLockerOrders } from "../alsendo/shipments.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const { settings } = await getShopSettings(session.shop);
   const counts = await networkCounts(settings.countries);
-  const networks = [...new Set([...counts.map((c) => c.network), ...Object.keys(settings.alsendo.services)])].sort();
+  const networks = [...new Set(counts.map((c) => c.network))].sort();
   const store = session.shop.replace(/\.myshopify\.com$/, "");
   return {
     alsendo: settings.alsendo,
-    networks: networks.map((network) => ({ network, short: networkShort(network) })),
+    networks: networks.map((network) => ({ network, short: networkShort(network), service: alsendoService(network) })),
     configured: alsendoConfigured(),
     missing: missingSenderFields(settings.alsendo),
     orders: await recentLockerOrders(admin, session.shop),
@@ -51,11 +51,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     const previous = await getShopSettings(session.shop);
     const old = previous.settings.alsendo;
-    const services: Record<string, string> = {};
-    for (const network of form.getAll("network").map(String)) {
-      const code = str(form.get(`service:${network}`)).toUpperCase();
-      if (code) services[network] = code;
-    }
     const alsendo: AlsendoSettings = {
       autoCreate: form.get("autoCreate") === "on",
       sender: {
@@ -73,7 +68,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         z: num(form.get("z"), old.parcel.z),
         weight: num(form.get("weight"), old.parcel.weight),
       },
-      services,
     };
     await saveShopSettings(session.shop, { ...previous, settings: { ...previous.settings, alsendo } });
     return { ok: true as const, intent: "settings", message: "Nustatymai išsaugoti" };
@@ -140,7 +134,7 @@ export default function Shipments() {
               </s-table-header-row>
               <s-table-body>
                 {orders.map((o) => (
-                  <OrderRow key={o.id} order={o} adminUrl={adminUrl} ready={ready} hasService={Boolean(o.locker && serviceCodeFor(alsendo, o.locker.network))} />
+                  <OrderRow key={o.id} order={o} adminUrl={adminUrl} ready={ready} hasService={Boolean(o.locker && alsendoService(o.locker.network))} />
                 ))}
               </s-table-body>
             </s-table>
@@ -188,20 +182,15 @@ export default function Shipments() {
             </s-section>
 
             <s-section heading="Alsendo paslaugos">
-              <s-stack direction="block" gap="base">
+              <s-stack direction="block" gap="small-200">
                 {networks.map((n) => (
-                  <s-stack key={n.network} direction="inline" gap="base" alignItems="center">
-                    <input type="hidden" name="network" value={n.network} />
-                    <s-text-field
-                      name={`service:${n.network}`}
-                      label={`${n.short} paslaugos kodas`}
-                      defaultValue={alsendo.services[n.network] ?? ""}
-                    />
+                  <s-stack key={n.network} direction="inline" justifyContent="space-between">
+                    <s-text>{n.short}</s-text>
+                    {n.service ? <s-text>{n.service}</s-text> : <s-text color="subdued">Alsendo nesiunčia</s-text>}
                   </s-stack>
                 ))}
                 <s-text color="subdued">
-                  Kurjeris – paštomatas: DPD S240, Omniva S218, Venipak S217. Palikite tuščią tipams, kurių Alsendo nesiunčia
-                  (LP Express paštomatų šioje paskyroje nėra).
+                  Kurjeris – paštomatas. Tipų, kurių Alsendo nesiunčia, pirkėjams pasiūlyti negalima.
                 </s-text>
               </s-stack>
             </s-section>

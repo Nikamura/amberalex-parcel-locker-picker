@@ -5,9 +5,9 @@ import { shipments } from "../db/schema";
 import { ATTR_LOCKER_ID, choiceFromShippingCodes } from "../lockers/order-update";
 import { findLocker, getShopSettings } from "../lockers/repo.server";
 import { parseLockerId } from "../lockers/service-code";
-import type { Settings } from "../lockers/settings";
+import { alsendoService, type Settings } from "../lockers/settings";
 import { alsendoConfigured, cancelOrder, createOrder, getLabel } from "./client.server";
-import { buildOrderRequest, serviceCodeFor } from "./request";
+import { buildOrderRequest } from "./request";
 
 type Admin = AdminApiContext;
 export type Shipment = typeof shipments.$inferSelect;
@@ -192,7 +192,7 @@ export async function createShipment(admin: Admin, shop: string, orderId: string
 /** Called once an order has a locker. Creates the shipment when auto-create is on and the network has a service. */
 export async function autoCreateShipment(admin: Admin, shop: string, orderId: string, network: string, settings: Settings) {
   if (!settings.alsendo.autoCreate || !alsendoConfigured()) return;
-  if (!serviceCodeFor(settings.alsendo, network)) return;
+  if (!alsendoService(network)) return;
   await createShipment(admin, shop, orderId, settings);
 }
 

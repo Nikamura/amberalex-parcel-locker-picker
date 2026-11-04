@@ -12,7 +12,7 @@ import {
   saveShopSettings,
 } from "../lockers/repo.server";
 import { carrierLogoKey } from "../lockers/brands";
-import { networkSettings, networkShort, type Settings } from "../lockers/settings";
+import { alsendoService, networkSettings, networkShort, type Settings } from "../lockers/settings";
 import { publishWidgetConfig } from "../lockers/widget-config.server";
 
 /** Keeps the theme embed's inlined config current; never blocks or fails the page. */
@@ -36,9 +36,10 @@ export const loader = async ({ request, context }: LoaderFunctionArgs) => {
       logo: carrierLogoKey(network),
       lockers: counts.filter((c) => c.network === network).reduce((s, c) => s + c.count, 0),
       ...networkSettings(settings, network),
+      shippable: Boolean(alsendoService(network)),
     }))
-    // Offered types first, then by size.
-    .sort((a, b) => Number(b.enabled) - Number(a.enabled) || b.lockers - a.lockers);
+    // Offered types first, then those Alsendo ships, then by size.
+    .sort((a, b) => Number(b.enabled) - Number(a.enabled) || Number(b.shippable) - Number(a.shippable) || b.lockers - a.lockers);
   const store = session.shop.replace(/\.myshopify\.com$/, "");
   const adminUrl = `https://admin.shopify.com/store/${store}`;
   return {
@@ -69,7 +70,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   const networks: Settings["networks"] = {};
   for (const network of form.getAll("network").map(String)) {
     networks[network] = {
-      enabled: form.get(`enabled:${network}`) === "on",
+      enabled: form.get(`enabled:${network}`) === "on" && Boolean(alsendoService(network)),
       label: String(form.get(`label:${network}`) || network).trim(),
       price: Math.max(0, num(form.get(`price:${network}`))),
     };
@@ -184,7 +185,7 @@ export default function Index() {
                     <s-table-row key={n.network}>
                       <s-table-cell>
                         <input type="hidden" name="network" value={n.network} />
-                        <s-checkbox name={`enabled:${n.network}`} accessibilityLabel={`Siūlyti ${n.short}`} defaultChecked={n.enabled} />
+                        <s-checkbox name={`enabled:${n.network}`} accessibilityLabel={`Siūlyti ${n.short}`} defaultChecked={n.enabled} disabled={!n.shippable} />
                       </s-table-cell>
                       <s-table-cell>
                         <s-stack direction="inline" gap="small-200" alignItems="center">
@@ -193,7 +194,9 @@ export default function Index() {
                           ) : null}
                           <s-stack direction="block">
                             <s-text type="strong">{n.short}</s-text>
-                            <s-text color="subdued">{n.lockers.toLocaleString("lt-LT")} paštomatų</s-text>
+                            <s-text color="subdued">
+                              {n.lockers.toLocaleString("lt-LT")} paštomatų{n.shippable ? "" : " · Alsendo nesiunčia"}
+                            </s-text>
                           </s-stack>
                         </s-stack>
                       </s-table-cell>

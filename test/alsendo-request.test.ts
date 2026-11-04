@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildOrderRequest, missingSenderFields, normalizePhone } from "../app/alsendo/request";
-import { defaultAlsendoSettings, withDefaults, type AlsendoSettings } from "../app/lockers/settings";
+import { alsendoService, defaultAlsendoSettings, networkSettings, withDefaults, type AlsendoSettings } from "../app/lockers/settings";
 import type { Locker } from "../app/lockers/types";
 
 const locker: Locker = {
@@ -58,11 +58,25 @@ describe("Alsendo order request", () => {
   });
 });
 
+describe("networks Alsendo can't ship", () => {
+  it("are never enabled, whatever was stored", () => {
+    const s = withDefaults({
+      networks: {
+        lp_post: { enabled: true, label: "LP Express", price: 2.99 },
+        gls: { enabled: true, label: "SmartPosti", price: 2.99 },
+      },
+    });
+    expect(networkSettings(s, "lp_post").enabled).toBe(false);
+    expect(networkSettings(s, "gls").enabled).toBe(true);
+    expect(alsendoService("lp_post")).toBeNull();
+    expect(alsendoService("venipak")).toBe("S217");
+  });
+});
+
 describe("stored settings", () => {
   it("fills in Alsendo defaults for shops saved before it existed", () => {
     const s = withDefaults({ enabled: true });
     expect(s.enabled).toBe(true);
-    expect(s.alsendo.services).toEqual({ dpd: "S240", omniva: "S218", venipak: "S217" });
     expect(withDefaults({ alsendo: { parcel: { x: 40 } } as never }).alsendo.parcel).toEqual({ x: 40, y: 20, z: 15, weight: 1 });
   });
 });
