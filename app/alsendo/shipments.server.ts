@@ -208,6 +208,24 @@ export async function cancelShipment(admin: Admin, shop: string, orderId: string
   }
 }
 
+/**
+ * orders/cancelled: cancels the order's active Alsendo shipment. A shipment still
+ * being created (auto-create racing the cancel) is waited for briefly.
+ */
+export async function cancelShipmentForCancelledOrder(admin: Admin, shop: string, orderId: string) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const row = await getShipment(shop, orderId);
+    if (row?.status === "created") {
+      await cancelShipment(admin, shop, orderId);
+      console.log(`[alsendo] ${shop}: cancelled ${row.shipmentId} with order ${orderId}`);
+      return;
+    }
+    if (row?.status !== "creating") return;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  console.error(`[alsendo] ${shop}: shipment for cancelled order ${orderId} still creating; cancel it by hand`);
+}
+
 /** The label as PDF bytes; fills in a missing tracking number on the way. */
 export async function shipmentLabel(admin: Admin, shop: string, orderId: string, size: "a6" | "a4") {
   const row = await getShipment(shop, orderId);
