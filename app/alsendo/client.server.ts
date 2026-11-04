@@ -22,7 +22,7 @@ export function alsendoConfigured() {
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = process.env.ALSENDO_API_TOKEN;
-  if (!token) throw new AlsendoError("ALSENDO_API_TOKEN is not set");
+  if (!token) throw new AlsendoError("ALSENDO_API_TOKEN nenustatytas");
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json", ...(init.body ? { "Content-Type": "application/json" } : {}) },

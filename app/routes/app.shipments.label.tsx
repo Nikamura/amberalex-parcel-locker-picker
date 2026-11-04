@@ -8,7 +8,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const size = url.searchParams.get("size") === "a4" ? "a4" : "a6";
   const label = await shipmentLabel(admin, session.shop, url.searchParams.get("order") ?? "", size);
-  if (!label) return new Response("Label not available", { status: 404 });
+  if (!label) return new Response("Lipdukas neprieinamas", { status: 404 });
   return new Response(label.pdf, {
     headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${label.name}"` },
   });

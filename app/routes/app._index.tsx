@@ -114,7 +114,7 @@ export default function Index() {
   const shopify = useAppBridge();
 
   useEffect(() => {
-    if (result?.ok) shopify.toast.show("Settings saved");
+    if (result?.ok) shopify.toast.show("Nustatymai išsaugoti");
   }, [result, shopify]);
 
   const live = settings.enabled && !settings.testMarker;
@@ -128,63 +128,63 @@ export default function Index() {
         <s-stack direction="block" gap="base">
           <s-stack direction="block" gap="base">
             {result && !result.ok && (
-              <s-banner tone="critical" heading="Could not register the checkout rates">
-                {result.error}. Carrier-calculated shipping must be available on the store's plan.
+              <s-banner tone="critical" heading="Nepavyko užregistruoti pristatymo kainų">
+                {result.error}. Parduotuvės plane turi būti įjungtas vežėjų skaičiuojamas pristatymas (carrier-calculated shipping).
               </s-banner>
             )}
             {!settings.enabled ? (
-              <s-banner tone="info" heading="Parcel lockers are switched off">
-                Buyers don't see a parcel locker option at checkout. Tick "Offer parcel lockers at checkout" and save.
+              <s-banner tone="info" heading="Paštomatai išjungti">
+                Pirkėjai atsiskaitydami nemato paštomato pasirinkimo. Pažymėkite „Siūlyti paštomatus atsiskaitant“ ir išsaugokite.
               </s-banner>
             ) : settings.testMarker ? (
-              <s-banner tone="warning" heading="Test mode">
-                Parcel lockers only appear when the shipping name or address contains "{settings.testMarker}". On the
-                storefront, open any page with ?plptest=1 to see the cart picker. Clear the test marker below to go live.
+              <s-banner tone="warning" heading="Bandomasis režimas">
+                Paštomatai rodomi tik tada, kai pristatymo varde ar adrese yra „{settings.testMarker}“. Parduotuvėje atidarykite
+                bet kurį puslapį su ?plptest=1, kad pamatytumėte pasirinkimą krepšelyje. Kad įjungtumėte visiems, ištrinkite bandomąjį žymeklį žemiau.
               </s-banner>
             ) : (
-              <s-banner tone="success" heading="Live">
-                Buyers in {settings.countries.join(", ")} can pick a parcel locker in the cart, at checkout and after payment.
+              <s-banner tone="success" heading="Įjungta">
+                Pirkėjai iš {settings.countries.join(", ")} gali pasirinkti paštomatą krepšelyje, atsiskaitydami ir po apmokėjimo.
               </s-banner>
             )}
           </s-stack>
 
-          <s-section heading="How it works">
+          <s-section heading="Kaip tai veikia">
             <s-ordered-list>
               <s-list-item>
-                Cart: the buyer can pick a locker on a map. Checkout then offers exactly that locker, preselected.
+                Krepšelis: pirkėjas gali pasirinkti paštomatą žemėlapyje. Atsiskaitant jis jau būna pasirinktas.
               </s-list-item>
               <s-list-item>
-                Checkout: otherwise the buyer sees "{settings.combineNetworks ? settings.combinedLabel : "one option per locker type"}"
-                next to your other shipping rates. Draft-order checkout links work the same way.
+                Atsiskaitymas: kitu atveju pirkėjas mato „{settings.combineNetworks ? settings.combinedLabel : "po vieną pasirinkimą kiekvienam paštomatų tipui"}“
+                šalia kitų pristatymo būdų. Užsakymų juodraščių atsiskaitymo nuorodos veikia taip pat.
               </s-list-item>
               <s-list-item>
-                After payment: if no locker was picked yet (e.g. draft orders), the thank-you page asks for one, any
-                type at the same or lower price. A chosen locker is shown read-only; changes go through you.
+                Po apmokėjimo: jei paštomatas dar nepasirinktas (pvz., užsakymų juodraščiai), padėkos puslapyje pirkėjas jį pasirenka –
+                bet kurio tipo, kurio kaina tokia pati ar mažesnė. Pasirinktas paštomatas rodomas be galimybės keisti; pakeitimus atliekate jūs.
               </s-list-item>
               <s-list-item>
-                The order gets the locker as separate fields ("Parcel locker", "Parcel locker address", "Parcel locker
-                ID"). The buyer's own shipping address is left untouched.
+                Paštomatas įrašomas į atskirus užsakymo laukus („Parcel locker“, „Parcel locker address“, „Parcel locker
+                ID“). Paties pirkėjo pristatymo adresas nekeičiamas.
               </s-list-item>
             </s-ordered-list>
           </s-section>
 
-          <s-section heading="Locker types">
+          <s-section heading="Paštomatų tipai">
             {networks.length === 0 ? (
-              <s-paragraph>No lockers loaded for these countries yet. The catalogue syncs daily.</s-paragraph>
+              <s-paragraph>Šioms šalims paštomatų dar neįkelta. Sąrašas atnaujinamas kasdien.</s-paragraph>
             ) : (
               <s-table>
                 <s-table-header-row>
-                  <s-table-header>Offer</s-table-header>
-                  <s-table-header listSlot="primary">Carrier</s-table-header>
-                  <s-table-header>Name shown to buyers</s-table-header>
-                  <s-table-header format="numeric">Price{currency ? ` (${currency})` : ""}</s-table-header>
+                  <s-table-header>Siūlyti</s-table-header>
+                  <s-table-header listSlot="primary">Vežėjas</s-table-header>
+                  <s-table-header>Pavadinimas pirkėjams</s-table-header>
+                  <s-table-header format="numeric">Kaina{currency ? ` (${currency})` : ""}</s-table-header>
                 </s-table-header-row>
                 <s-table-body>
                   {networks.map((n) => (
                     <s-table-row key={n.network}>
                       <s-table-cell>
                         <input type="hidden" name="network" value={n.network} />
-                        <s-checkbox name={`enabled:${n.network}`} accessibilityLabel={`Offer ${n.short}`} defaultChecked={n.enabled} />
+                        <s-checkbox name={`enabled:${n.network}`} accessibilityLabel={`Siūlyti ${n.short}`} defaultChecked={n.enabled} />
                       </s-table-cell>
                       <s-table-cell>
                         <s-stack direction="inline" gap="small-200" alignItems="center">
@@ -193,15 +193,15 @@ export default function Index() {
                           ) : null}
                           <s-stack direction="block">
                             <s-text type="strong">{n.short}</s-text>
-                            <s-text color="subdued">{n.lockers.toLocaleString("en")} lockers</s-text>
+                            <s-text color="subdued">{n.lockers.toLocaleString("lt-LT")} paštomatų</s-text>
                           </s-stack>
                         </s-stack>
                       </s-table-cell>
                       <s-table-cell>
-                        <s-text-field name={`label:${n.network}`} label="Name shown to buyers" labelAccessibilityVisibility="exclusive" defaultValue={n.label} />
+                        <s-text-field name={`label:${n.network}`} label="Pavadinimas pirkėjams" labelAccessibilityVisibility="exclusive" defaultValue={n.label} />
                       </s-table-cell>
                       <s-table-cell>
-                        <s-text-field name={`price:${n.network}`} label="Price" labelAccessibilityVisibility="exclusive" defaultValue={String(n.price)} />
+                        <s-text-field name={`price:${n.network}`} label="Kaina" labelAccessibilityVisibility="exclusive" defaultValue={String(n.price)} />
                       </s-table-cell>
                     </s-table-row>
                   ))}
@@ -210,48 +210,48 @@ export default function Index() {
             )}
           </s-section>
 
-          <s-section heading="Checkout">
+          <s-section heading="Atsiskaitymas">
             <s-stack direction="block" gap="base">
               <s-checkbox
                 name="enabled"
-                label="Offer parcel lockers at checkout"
-                details="Adds the parcel locker option next to your other shipping rates."
+                label="Siūlyti paštomatus atsiskaitant"
+                details="Prideda paštomato pasirinkimą šalia kitų pristatymo būdų."
                 defaultChecked={settings.enabled}
               />
               <s-checkbox
                 name="combineNetworks"
-                label="Show one checkout option for all locker types"
-                details="The buyer picks the carrier and locker after payment. Priced at the most expensive offered type."
+                label="Rodyti vieną pasirinkimą visiems paštomatų tipams"
+                details="Vežėją ir paštomatą pirkėjas pasirenka po apmokėjimo. Kaina – brangiausio siūlomo tipo."
                 defaultChecked={settings.combineNetworks}
               />
               <s-text-field
                 name="combinedLabel"
-                label="Name of the combined option"
-                details="For example: Paštomatas (DPD / LP Express / Omniva)"
+                label="Bendro pasirinkimo pavadinimas"
+                details="Pavyzdžiui: Paštomatas (DPD / LP Express / Omniva)"
                 defaultValue={settings.combinedLabel}
               />
               <s-text-field
                 name="chooseLaterText"
-                label="Text under the locker option at checkout"
-                details="Tells the buyer when they pick the exact locker."
+                label="Tekstas po paštomato pasirinkimu atsiskaitant"
+                details="Paaiškina pirkėjui, kada jis pasirinks konkretų paštomatą."
                 defaultValue={settings.chooseLaterText}
               />
               <s-text-field
                 name="freeShippingOver"
-                label={`Free locker delivery from order subtotal${currency ? ` (${currency})` : ""}`}
-                details="Leave empty to always charge."
+                label={`Nemokamas pristatymas į paštomatą nuo užsakymo sumos${currency ? ` (${currency})` : ""}`}
+                details="Palikite tuščią, jei pristatymas visada mokamas."
                 defaultValue={settings.freeShippingOver === null ? "" : String(settings.freeShippingOver)}
               />
               <s-text-field
                 name="countries"
-                label="Countries"
-                details="Comma-separated country codes, e.g. LT, LV, EE"
+                label="Šalys"
+                details="Šalių kodai, atskirti kableliais, pvz., LT, LV, EE"
                 defaultValue={settings.countries.join(", ")}
               />
               <s-text-field
                 name="testMarker"
-                label="Test mode marker"
-                details="While set, lockers only show when the shipping name or address contains this text (e.g. PLPTEST). Clear it to go live."
+                label="Bandomojo režimo žymeklis"
+                details="Kol nustatytas, paštomatai rodomi tik tada, kai pristatymo varde ar adrese yra šis tekstas (pvz., PLPTEST). Ištrinkite, kad įjungtumėte visiems."
                 defaultValue={settings.testMarker ?? ""}
               />
             </s-stack>
@@ -259,46 +259,46 @@ export default function Index() {
 
           <s-stack direction="inline" justifyContent="end">
             <s-button type="submit" variant="primary" {...(saving ? { loading: true } : {})}>
-              Save
+              Išsaugoti
             </s-button>
           </s-stack>
         </s-stack>
       </Form>
 
-        <s-section slot="aside" heading="Setup">
+        <s-section slot="aside" heading="Paruošimas">
           <s-stack direction="block" gap="base">
-            <SetupStep done={Boolean(carrierServiceId)} title="Checkout rates">
-              {carrierServiceId ? "Registered with Shopify." : "Save this page once to register them."}
+            <SetupStep done={Boolean(carrierServiceId)} title="Pristatymo kainos">
+              {carrierServiceId ? "Užregistruotos Shopify." : "Išsaugokite šį puslapį, kad jos būtų užregistruotos."}
             </SetupStep>
-            <SetupStep title="Cart picker">
-              Turn on the "Paštomatai" app embed in the theme.{" "}
-              <s-link href={links.themeEmbed} target="_top">Open theme editor</s-link>
+            <SetupStep title="Pasirinkimas krepšelyje">
+              Temoje įjunkite programėlės įterpinį „Paštomatai“.{" "}
+              <s-link href={links.themeEmbed} target="_top">Atidaryti temos redaktorių</s-link>
             </SetupStep>
-            <SetupStep title="Thank-you page">
-              On the thank-you page, add the "Parcel locker choice" app block, e.g. in Main under the confirmation.{" "}
-              <s-link href={links.checkoutEditor} target="_top">Open checkout editor</s-link>
+            <SetupStep title="Padėkos puslapis">
+              Padėkos puslapyje pridėkite programėlės bloką „Parcel locker choice“, pvz., skiltyje Main po patvirtinimu.{" "}
+              <s-link href={links.checkoutEditor} target="_top">Atidaryti atsiskaitymo redaktorių</s-link>
             </SetupStep>
-            <SetupStep done={live} title="Go live">
-              {live ? "Lockers are offered to every buyer." : "Clear the test mode marker and save."}
+            <SetupStep done={live} title="Įjungimas visiems">
+              {live ? "Paštomatai siūlomi visiems pirkėjams." : "Ištrinkite bandomojo režimo žymeklį ir išsaugokite."}
             </SetupStep>
           </s-stack>
         </s-section>
 
-        <s-section slot="aside" heading="Locker data">
+        <s-section slot="aside" heading="Paštomatų duomenys">
           <s-stack direction="block" gap="small-200">
             <s-text>
-              {totalLockers.toLocaleString("en")} lockers offered in {settings.countries.join(", ")}
+              Siūloma paštomatų: {totalLockers.toLocaleString("lt-LT")} ({settings.countries.join(", ")})
             </s-text>
             {syncs.map((s) => (
               <s-text key={s.source} color="subdued">
-                Updated from Alsendo {new Date(s.finishedAt).toLocaleString("lt-LT", { timeZone: "Europe/Vilnius" })}
-                {s.error ? ` (last error: ${s.error})` : ""}. Refreshes daily.
+                Atnaujinta iš Alsendo {new Date(s.finishedAt).toLocaleString("lt-LT", { timeZone: "Europe/Vilnius" })}
+                {s.error ? ` (paskutinė klaida: ${s.error})` : ""}. Atnaujinama kasdien.
               </s-text>
             ))}
           </s-stack>
         </s-section>
 
-        <s-section slot="aside" heading="Prices">
+        <s-section slot="aside" heading="Kainos">
           <s-stack direction="block" gap="small-200">
             {offered.map((n) => (
               <s-stack key={n.network} direction="inline" justifyContent="space-between">
@@ -307,8 +307,8 @@ export default function Index() {
               </s-stack>
             ))}
             <s-text color="subdued">
-              Keep lockers below your standard shipping rate and Shopify preselects them at checkout.{" "}
-              <s-link href={links.shipping} target="_top">Shipping settings</s-link>
+              Jei paštomatai pigesni už standartinį pristatymą, Shopify juos pažymi atsiskaitant automatiškai.{" "}
+              <s-link href={links.shipping} target="_top">Pristatymo nustatymai</s-link>
             </s-text>
           </s-stack>
         </s-section>
@@ -321,7 +321,7 @@ function SetupStep({ done, title, children }: { done?: boolean; title: string; c
     <s-stack direction="block" gap="small-300">
       <s-stack direction="inline" gap="small-200" alignItems="center">
         {done === undefined ? null : (
-          <s-badge tone={done ? "success" : "warning"}>{done ? "Done" : "To do"}</s-badge>
+          <s-badge tone={done ? "success" : "warning"}>{done ? "Atlikta" : "Reikia atlikti"}</s-badge>
         )}
         <s-text type="strong">{title}</s-text>
       </s-stack>

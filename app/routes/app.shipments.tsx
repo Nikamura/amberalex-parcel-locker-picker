@@ -41,12 +41,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     if (intent === "create") {
       const shipment = await createShipment(admin, session.shop, orderId);
-      if (shipment?.status !== "created") return { ok: false as const, intent, error: shipment?.error ?? "Shipment not created" };
-      return { ok: true as const, intent, message: `Shipment ${shipment.shipmentId} created` };
+      if (shipment?.status !== "created") return { ok: false as const, intent, error: shipment?.error ?? "Siunta nesukurta" };
+      return { ok: true as const, intent, message: `Siunta ${shipment.shipmentId} sukurta` };
     }
     if (intent === "cancel") {
       await cancelShipment(admin, session.shop, orderId);
-      return { ok: true as const, intent, message: "Shipment cancelled" };
+      return { ok: true as const, intent, message: "Siunta atšaukta" };
     }
 
     const previous = await getShopSettings(session.shop);
@@ -76,7 +76,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       services,
     };
     await saveShopSettings(session.shop, { ...previous, settings: { ...previous.settings, alsendo } });
-    return { ok: true as const, intent: "settings", message: "Settings saved" };
+    return { ok: true as const, intent: "settings", message: "Nustatymai išsaugoti" };
   } catch (error) {
     return { ok: false as const, intent, error: error instanceof Error ? error.message : String(error) };
   }
@@ -85,10 +85,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 type ActionResult = Awaited<ReturnType<typeof action>>;
 
 const STATUS: Record<string, { tone: "success" | "critical" | "warning" | "neutral" | "info"; label: string }> = {
-  created: { tone: "success", label: "Created" },
-  failed: { tone: "critical", label: "Failed" },
-  cancelled: { tone: "neutral", label: "Cancelled" },
-  creating: { tone: "info", label: "Creating…" },
+  created: { tone: "success", label: "Sukurta" },
+  failed: { tone: "critical", label: "Nepavyko" },
+  cancelled: { tone: "neutral", label: "Atšaukta" },
+  creating: { tone: "info", label: "Kuriama…" },
 };
 
 export default function Shipments() {
@@ -106,37 +106,37 @@ export default function Shipments() {
   const s = alsendo.sender;
 
   return (
-    <s-page heading="Alsendo shipments">
+    <s-page heading="Alsendo siuntos">
       <s-stack direction="block" gap="base">
         {!configured ? (
-          <s-banner tone="critical" heading="Alsendo API token missing">
-            Set the Worker secret ALSENDO_API_TOKEN, then reload this page.
+          <s-banner tone="critical" heading="Trūksta Alsendo API rakto">
+            Nustatykite Worker paslaptį ALSENDO_API_TOKEN ir perkraukite šį puslapį.
           </s-banner>
         ) : missing.length ? (
-          <s-banner tone="warning" heading="Fill in the sender">
-            Shipments need the pickup address: {missing.join(", ")}.
+          <s-banner tone="warning" heading="Užpildykite siuntėjo duomenis">
+            Siuntoms trūksta paėmimo duomenų: {missing.join(", ")}.
           </s-banner>
         ) : alsendo.autoCreate ? (
-          <s-banner tone="success" heading="Automatic">
-            A shipment is created as soon as an order has a parcel locker. Alsendo bills it only once the courier scans
-            the parcel; cancel any you won’t send.
+          <s-banner tone="success" heading="Automatiškai">
+            Siunta sukuriama, kai tik užsakymas turi paštomatą. Alsendo apmokestina tik kurjeriui nuskenavus siuntą;
+            nesiunčiamas siuntas atšaukite.
           </s-banner>
         ) : (
-          <s-banner tone="info" heading="Manual">
-            Create shipments from the list below, or turn on automatic creation.
+          <s-banner tone="info" heading="Rankiniu būdu">
+            Siuntas kurkite iš sąrašo žemiau arba įjunkite automatinį kūrimą.
           </s-banner>
         )}
 
-        <s-section heading="Recent parcel locker orders">
+        <s-section heading="Naujausi užsakymai į paštomatus">
           {orders.length === 0 ? (
-            <s-paragraph>No parcel locker orders among the latest 75 orders.</s-paragraph>
+            <s-paragraph>Tarp paskutinių 75 užsakymų nėra užsakymų į paštomatus.</s-paragraph>
           ) : (
             <s-table>
               <s-table-header-row>
-                <s-table-header listSlot="primary">Order</s-table-header>
-                <s-table-header>Locker</s-table-header>
-                <s-table-header>Shipment</s-table-header>
-                <s-table-header>Actions</s-table-header>
+                <s-table-header listSlot="primary">Užsakymas</s-table-header>
+                <s-table-header>Paštomatas</s-table-header>
+                <s-table-header>Siunta</s-table-header>
+                <s-table-header>Veiksmai</s-table-header>
               </s-table-header-row>
               <s-table-body>
                 {orders.map((o) => (
@@ -150,65 +150,65 @@ export default function Shipments() {
         <Form method="post" data-save-bar data-discard-confirmation>
           <input type="hidden" name="intent" value="settings" />
           <s-stack direction="block" gap="base">
-            <s-section heading="Creation">
+            <s-section heading="Kūrimas">
               <s-checkbox
                 name="autoCreate"
-                label="Create the Alsendo shipment automatically"
-                details="As soon as the order has a parcel locker: at checkout, or when the buyer picks one after payment."
+                label="Kurti Alsendo siuntą automatiškai"
+                details="Kai tik užsakymas turi paštomatą: atsiskaitant arba kai pirkėjas jį pasirenka po apmokėjimo."
                 defaultChecked={alsendo.autoCreate}
               />
             </s-section>
 
-            <s-section heading="Sender (courier pickup)">
+            <s-section heading="Siuntėjas (kurjerio paėmimas)">
               <s-stack direction="block" gap="base">
-                <s-text-field name="companyName" label="Company" defaultValue={s.companyName} />
-                <s-text-field name="contactName" label="Contact name" required defaultValue={s.contactName} />
-                <s-text-field name="street" label="Street and number" required defaultValue={s.street} />
+                <s-text-field name="companyName" label="Įmonė" defaultValue={s.companyName} />
+                <s-text-field name="contactName" label="Kontaktinis asmuo" required defaultValue={s.contactName} />
+                <s-text-field name="street" label="Gatvė ir numeris" required defaultValue={s.street} />
                 <s-stack direction="inline" gap="base">
-                  <s-text-field name="city" label="City" required defaultValue={s.city} />
-                  <s-text-field name="zip" label="Postcode" required details="Without LT-" defaultValue={s.zip} />
+                  <s-text-field name="city" label="Miestas" required defaultValue={s.city} />
+                  <s-text-field name="zip" label="Pašto kodas" required details="Be LT-" defaultValue={s.zip} />
                 </s-stack>
                 <s-stack direction="inline" gap="base">
-                  <s-text-field name="phone" label="Phone" required defaultValue={s.phone} />
-                  <s-email-field name="email" label="Email" defaultValue={s.email} />
+                  <s-text-field name="phone" label="Telefonas" required defaultValue={s.phone} />
+                  <s-email-field name="email" label="El. paštas" defaultValue={s.email} />
                 </s-stack>
               </s-stack>
             </s-section>
 
-            <s-section heading="Default parcel">
+            <s-section heading="Numatytasis siuntinys">
               <s-stack direction="block" gap="base">
                 <s-stack direction="inline" gap="base">
-                  <s-text-field name="x" label="Width (cm)" defaultValue={String(alsendo.parcel.x)} />
-                  <s-text-field name="y" label="Length (cm)" defaultValue={String(alsendo.parcel.y)} />
-                  <s-text-field name="z" label="Height (cm)" defaultValue={String(alsendo.parcel.z)} />
-                  <s-text-field name="weight" label="Weight (kg)" defaultValue={String(alsendo.parcel.weight)} />
+                  <s-text-field name="x" label="Plotis (cm)" defaultValue={String(alsendo.parcel.x)} />
+                  <s-text-field name="y" label="Ilgis (cm)" defaultValue={String(alsendo.parcel.y)} />
+                  <s-text-field name="z" label="Aukštis (cm)" defaultValue={String(alsendo.parcel.z)} />
+                  <s-text-field name="weight" label="Svoris (kg)" defaultValue={String(alsendo.parcel.weight)} />
                 </s-stack>
-                <s-text color="subdued">The order’s own weight is used when its products have one.</s-text>
+                <s-text color="subdued">Jei užsakymo prekės turi svorį, naudojamas užsakymo svoris.</s-text>
               </s-stack>
             </s-section>
 
-            <s-section heading="Alsendo services">
+            <s-section heading="Alsendo paslaugos">
               <s-stack direction="block" gap="base">
                 {networks.map((n) => (
                   <s-stack key={n.network} direction="inline" gap="base" alignItems="center">
                     <input type="hidden" name="network" value={n.network} />
                     <s-text-field
                       name={`service:${n.network}`}
-                      label={`${n.short} service code`}
+                      label={`${n.short} paslaugos kodas`}
                       defaultValue={alsendo.services[n.network] ?? ""}
                     />
                   </s-stack>
                 ))}
                 <s-text color="subdued">
-                  Courier pickup to locker: DPD S240, Omniva S218, Venipak S217. Leave empty for types Alsendo can’t ship
-                  (LP Express lockers aren’t available on this account).
+                  Kurjeris – paštomatas: DPD S240, Omniva S218, Venipak S217. Palikite tuščią tipams, kurių Alsendo nesiunčia
+                  (LP Express paštomatų šioje paskyroje nėra).
                 </s-text>
               </s-stack>
             </s-section>
 
             <s-stack direction="inline" justifyContent="end">
               <s-button type="submit" variant="primary" {...(saving ? { loading: true } : {})}>
-                Save
+                Išsaugoti
               </s-button>
             </s-stack>
           </s-stack>
@@ -238,7 +238,7 @@ function OrderRow({ order, adminUrl, ready, hasService }: { order: OrderItem; ad
     // App Bridge adds the session token to same-origin fetches.
     const res = await fetch(`/app/shipments/label?order=${encodeURIComponent(order.id)}&size=${size}`);
     if (!res.ok) {
-      shopify.toast.show("Label not available yet", { isError: true });
+      shopify.toast.show("Lipdukas dar neparuoštas", { isError: true });
       return;
     }
     const url = URL.createObjectURL(await res.blob());
@@ -261,7 +261,7 @@ function OrderRow({ order, adminUrl, ready, hasService }: { order: OrderItem; ad
           </s-link>
           <s-text color="subdued">
             {new Date(order.createdAt).toLocaleDateString("lt-LT", { timeZone: "Europe/Vilnius" })}
-            {order.cancelled ? " · cancelled" : ""}
+            {order.cancelled ? " · atšauktas" : ""}
           </s-text>
         </s-stack>
       </s-table-cell>
@@ -274,12 +274,12 @@ function OrderRow({ order, adminUrl, ready, hasService }: { order: OrderItem; ad
             </s-text>
           </s-stack>
         ) : (
-          <s-text color="subdued">{order.lockerLabel ?? "Not chosen yet"}</s-text>
+          <s-text color="subdued">{order.lockerLabel ?? "Dar nepasirinktas"}</s-text>
         )}
       </s-table-cell>
       <s-table-cell>
         <s-stack direction="block" gap="small-300">
-          {status ? <s-badge tone={status.tone}>{status.label}</s-badge> : order.locker && !hasService ? <s-text color="subdued">No Alsendo service</s-text> : <s-text color="subdued">—</s-text>}
+          {status ? <s-badge tone={status.tone}>{status.label}</s-badge> : order.locker && !hasService ? <s-text color="subdued">Nėra Alsendo paslaugos</s-text> : <s-text color="subdued">—</s-text>}
           {shipment?.shipmentId && shipment.status === "created" ? <s-text>{shipment.shipmentId}</s-text> : null}
           {shipment?.trackingNumber && shipment.status === "created" ? <s-text color="subdued">{shipment.trackingNumber}</s-text> : null}
           {shipment?.status === "failed" && shipment.error ? <s-text tone="critical">{shipment.error}</s-text> : null}
@@ -289,17 +289,17 @@ function OrderRow({ order, adminUrl, ready, hasService }: { order: OrderItem; ad
         <s-stack direction="inline" gap="small-200">
           {canCreate ? (
             <s-button onClick={() => submit("create")} {...(busy ? { loading: true } : {})}>
-              {shipment ? "Create again" : "Create"}
+              {shipment ? "Kurti iš naujo" : "Kurti"}
             </s-button>
           ) : null}
           {shipment?.status === "created" ? (
             <>
-              <s-button onClick={() => downloadLabel("a6")}>Label</s-button>
+              <s-button onClick={() => downloadLabel("a6")}>Lipdukas</s-button>
               <s-button onClick={() => downloadLabel("a4")} variant="tertiary">
                 A4
               </s-button>
               <s-button tone="critical" variant="tertiary" onClick={() => submit("cancel")} {...(busy ? { loading: true } : {})}>
-                Cancel
+                Atšaukti
               </s-button>
             </>
           ) : null}

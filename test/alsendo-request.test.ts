@@ -42,12 +42,12 @@ describe("Alsendo order request", () => {
 
   it("refuses what Alsendo can't ship", () => {
     expect(buildOrderRequest(settings, { ...locker, network: "lp_post" }, order)).toMatchObject({ ok: false });
-    expect(buildOrderRequest(settings, locker, { ...order, receiverPhone: null })).toEqual({ ok: false, error: "The order has no phone number for the locker SMS" });
-    expect(buildOrderRequest(defaultAlsendoSettings(), locker, order)).toMatchObject({ ok: false, error: expect.stringContaining("Sender") });
+    expect(buildOrderRequest(settings, locker, { ...order, receiverPhone: null })).toEqual({ ok: false, error: "Užsakyme nėra telefono numerio paštomato SMS žinutei" });
+    expect(buildOrderRequest(defaultAlsendoSettings(), locker, order)).toMatchObject({ ok: false, error: expect.stringContaining("siuntėjo") });
   });
 
   it("lists missing sender fields", () => {
-    expect(missingSenderFields(defaultAlsendoSettings())).toEqual(["contact name", "street", "city", "postcode", "phone"]);
+    expect(missingSenderFields(defaultAlsendoSettings())).toEqual(["kontaktinis asmuo", "gatvė", "miestas", "pašto kodas", "telefonas"]);
     expect(missingSenderFields(settings)).toEqual([]);
   });
 

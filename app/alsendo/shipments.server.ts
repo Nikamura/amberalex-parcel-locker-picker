@@ -52,7 +52,7 @@ async function gql<T>(admin: Admin, query: string, variables: Record<string, unk
 
 async function loadOrder(admin: Admin, orderId: string) {
   const { order } = await gql<{ order: ShipmentOrderData | null }>(admin, ORDER_QUERY, { id: orderId });
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new Error("Užsakymas nerastas");
   return order;
 }
 
@@ -146,12 +146,12 @@ export async function createShipment(admin: Admin, shop: string, orderId: string
     const shopSettings = settings ?? (await getShopSettings(shop)).settings;
     const order = await loadOrder(admin, orderId);
     await updateShipment(shop, orderId, { orderName: order.name });
-    if (order.cancelledAt) throw new Error("The order is cancelled");
+    if (order.cancelledAt) throw new Error("Užsakymas atšauktas");
 
     const ref = parseLockerId(order.customAttributes.find((a) => a.key === ATTR_LOCKER_ID)?.value);
-    if (!ref) throw new Error("No parcel locker chosen yet");
+    if (!ref) throw new Error("Paštomatas dar nepasirinktas");
     const locker = await findLocker(ref.source, ref.externalId);
-    if (!locker) throw new Error(`Locker ${ref.source}:${ref.externalId} is no longer in the catalogue`);
+    if (!locker) throw new Error(`Paštomato ${ref.source}:${ref.externalId} nebėra sąraše`);
 
     const weight = Number(order.totalWeight);
     const built = buildOrderRequest(shopSettings.alsendo, locker, {
@@ -198,7 +198,7 @@ export async function autoCreateShipment(admin: Admin, shop: string, orderId: st
 
 export async function cancelShipment(admin: Admin, shop: string, orderId: string) {
   const row = await getShipment(shop, orderId);
-  if (row?.status !== "created" || !row.shipmentId) throw new Error("No active shipment for this order");
+  if (row?.status !== "created" || !row.shipmentId) throw new Error("Šis užsakymas neturi aktyvios siuntos");
   await cancelOrder(row.shipmentId);
   await updateShipment(shop, orderId, { status: "cancelled", error: null });
   try {

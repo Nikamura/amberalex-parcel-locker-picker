@@ -53,11 +53,11 @@ export function normalizePhone(raw: string | null | undefined, countryCode: stri
 }
 
 const SENDER_REQUIRED: Array<[keyof AlsendoSettings["sender"], string]> = [
-  ["contactName", "contact name"],
-  ["street", "street"],
-  ["city", "city"],
-  ["zip", "postcode"],
-  ["phone", "phone"],
+  ["contactName", "kontaktinis asmuo"],
+  ["street", "gatvė"],
+  ["city", "miestas"],
+  ["zip", "pašto kodas"],
+  ["phone", "telefonas"],
 ];
 
 /** What is missing before shipments can be created, as short phrases; empty when ready. */
@@ -72,16 +72,16 @@ export function serviceCodeFor(settings: AlsendoSettings, network: string): stri
 export type BuildResult = { ok: true; body: AlsendoOrderRequest } | { ok: false; error: string };
 
 export function buildOrderRequest(settings: AlsendoSettings, locker: Locker, order: ShipmentOrder): BuildResult {
-  if (locker.source !== "alsendo") return { ok: false, error: `Locker ${locker.source}:${locker.externalId} is not an Alsendo terminal` };
+  if (locker.source !== "alsendo") return { ok: false, error: `Paštomatas ${locker.source}:${locker.externalId} nėra Alsendo paštomatas` };
   const serviceCode = serviceCodeFor(settings, locker.network);
-  if (!serviceCode) return { ok: false, error: `No Alsendo service set for ${locker.network} lockers` };
+  if (!serviceCode) return { ok: false, error: `Paštomatams ${locker.network} nenustatyta Alsendo paslauga` };
   const countryId = ALSENDO_COUNTRY_IDS[locker.countryCode];
-  if (!countryId) return { ok: false, error: `Alsendo shipments to ${locker.countryCode} are not supported` };
+  if (!countryId) return { ok: false, error: `Alsendo siuntos į ${locker.countryCode} nepalaikomos` };
   const missing = missingSenderFields(settings);
-  if (missing.length) return { ok: false, error: `Sender ${missing.join(", ")} missing in settings` };
+  if (missing.length) return { ok: false, error: `Nustatymuose trūksta siuntėjo duomenų: ${missing.join(", ")}` };
 
   const receiverPhone = normalizePhone(order.receiverPhone ?? order.phone, locker.countryCode);
-  if (!receiverPhone) return { ok: false, error: "The order has no phone number for the locker SMS" };
+  if (!receiverPhone) return { ok: false, error: "Užsakyme nėra telefono numerio paštomato SMS žinutei" };
   const receiverName = order.receiverName?.trim() || order.email || order.name;
 
   const { sender, parcel } = settings;
