@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate, unauthenticated } from "../shopify.server";
-import { choiceFromShippingCodes, type OrderSnapshot } from "../lockers/order-update";
+import { choiceFromShippingLine, type OrderSnapshot } from "../lockers/order-update";
 import { saveChosenLocker } from "../lockers/order-sync.server";
 import { autoCreateShipment } from "../alsendo/shipments.server";
 import { findLocker, getShopSettings, markThankYouSeen, networksInCountry, searchLockers } from "../lockers/repo.server";
@@ -23,7 +23,7 @@ const ORDER_QUERY = `#graphql
       createdAt
       cancelledAt
       displayFulfillmentStatus
-      shippingLine { code }
+      shippingLine { code custom }
       shippingAddress { firstName lastName phone zip countryCodeV2 }
       customAttributes { key value }
     }
@@ -35,7 +35,7 @@ interface AdminOrder {
   createdAt: string;
   cancelledAt: string | null;
   displayFulfillmentStatus: string;
-  shippingLine: { code: string | null } | null;
+  shippingLine: { code: string | null; custom: boolean } | null;
   shippingAddress: { firstName: string | null; lastName: string | null; phone: string | null; zip: string | null; countryCodeV2: string } | null;
   customAttributes: Array<{ key: string; value: string | null }>;
 }
@@ -79,7 +79,7 @@ async function allowedNetworks(settings: Settings, country: string, paidNetwork:
 
 async function describe(shop: string, order: AdminOrder) {
   const { settings } = await getShopSettings(shop);
-  const choice = choiceFromShippingCodes([order.shippingLine?.code]);
+  const choice = choiceFromShippingLine(order.shippingLine);
   if (!choice) return null;
 
   const currentId = order.customAttributes.find((a) => a.key === "Parcel locker ID")?.value;
@@ -103,6 +103,10 @@ async function describe(shop: string, order: AdminOrder) {
     !order.cancelledAt && order.displayFulfillmentStatus === "UNFULFILLED" && ageDays <= EDIT_WINDOW_DAYS &&
     !current;
 
+  const networks = paidNetwork ? await allowedNetworks(settings, country, paidNetwork) : [];
+  // E.g. a custom shipping line on an order to a country without lockers.
+  if (!networks.length && !current) return null;
+
   return {
     settings,
     country,
@@ -114,7 +118,7 @@ async function describe(shop: string, order: AdminOrder) {
       country,
       zip: order.shippingAddress?.zip ?? null,
       current: current ? toResult(current) : null,
-      networks: paidNetwork ? await allowedNetworks(settings, country, paidNetwork) : [],
+      networks,
       paidNetwork: paidNetwork ?? null,
     },
   };

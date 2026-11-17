@@ -36,6 +36,16 @@ export function choiceFromShippingCodes(codes: Array<string | null | undefined>)
   return null;
 }
 
+/**
+ * The buyer's choice from an order's shipping line. A custom line (typed into a
+ * draft order) carries no rate code, so it counts as "any locker type, chosen
+ * after payment".
+ */
+export function choiceFromShippingLine(line: { code?: string | null; custom?: boolean | null } | null | undefined): ServiceChoice | null {
+  if (!line) return null;
+  return decodeServiceCode(line.code) ?? (line.custom ? { kind: "network", network: ANY_NETWORK } : null);
+}
+
 function attributesWith(order: OrderSnapshot, extra: Array<{ name: string; value: string }>) {
   return [
     ...order.attributes.filter((a) => !LOCKER_ATTRIBUTES.has(a.name)),

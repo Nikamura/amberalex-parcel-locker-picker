@@ -6,6 +6,7 @@ import {
   buildOrderInput,
   buildPendingOrderInput,
   choiceFromShippingCodes,
+  choiceFromShippingLine,
   snapshotFromWebhook,
 } from "../app/lockers/order-update";
 import { defaultSettings } from "../app/lockers/settings";
@@ -27,6 +28,13 @@ describe("shipping line choice", () => {
     expect(choiceFromShippingCodes(["PLP1:alsendo:53264"])).toEqual({ kind: "locker", source: "alsendo", externalId: "53264" });
     expect(choiceFromShippingCodes([null, "PLP1N:omniva"])).toEqual({ kind: "network", network: "omniva" });
     expect(choiceFromShippingCodes(["Standard"])).toBeNull();
+  });
+
+  it("treats a custom shipping line as any locker type, chosen after payment", () => {
+    expect(choiceFromShippingLine({ code: "Siuntimas", custom: true })).toEqual({ kind: "network", network: "any" });
+    expect(choiceFromShippingLine({ code: "PLP1N:omniva", custom: false })).toEqual({ kind: "network", network: "omniva" });
+    expect(choiceFromShippingLine({ code: "Standard", custom: false })).toBeNull();
+    expect(choiceFromShippingLine(null)).toBeNull();
   });
 });
 
