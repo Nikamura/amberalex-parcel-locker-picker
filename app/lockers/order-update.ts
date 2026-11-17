@@ -17,7 +17,8 @@ export interface OrderSnapshot {
 // Subset of the orders/create webhook payload we use.
 export interface OrderPayload {
   admin_graphql_api_id: string;
-  shipping_lines?: Array<{ code?: string | null }>;
+  shipping_lines?: Array<{ code?: string | null; title?: string | null }>;
+  shipping_address?: { country_code?: string | null } | null;
   note_attributes?: Array<{ name: string; value: string }>;
 }
 
@@ -38,6 +39,11 @@ export function choiceFromShippingCodes(codes: Array<string | null | undefined>)
 
 const LOCKER_TITLE = /pa[šs]tomat/iu;
 
+/** Whether a shipping line title names a parcel locker ("Paštomatas"). */
+export function mentionsLocker(title: string | null | undefined) {
+  return LOCKER_TITLE.test(title ?? "");
+}
+
 /**
  * The buyer's choice from an order's shipping line. A custom line (typed into a
  * draft order) carries no rate code; if its title mentions a parcel locker
@@ -49,7 +55,7 @@ export function choiceFromShippingLine(
   if (!line) return null;
   const decoded = decodeServiceCode(line.code);
   if (decoded) return decoded;
-  return line.custom && LOCKER_TITLE.test(line.title ?? "") ? { kind: "network", network: ANY_NETWORK } : null;
+  return line.custom && mentionsLocker(line.title) ? { kind: "network", network: ANY_NETWORK } : null;
 }
 
 function attributesWith(order: OrderSnapshot, extra: Array<{ name: string; value: string }>) {

@@ -1,19 +1,31 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { choiceFromShippingCodes, snapshotFromWebhook, type OrderPayload } from "../lockers/order-update";
-import { markLockerPending, saveChosenLocker } from "../lockers/order-sync.server";
-import { findLocker, getShopSettings } from "../lockers/repo.server";
+import { choiceFromShippingCodes, choiceFromShippingLine, mentionsLocker, snapshotFromWebhook, type OrderPayload } from "../lockers/order-update";
+import { fetchShippingLine, markLockerPending, saveChosenLocker } from "../lockers/order-sync.server";
+import { findLocker, getShopSettings, networksInCountry } from "../lockers/repo.server";
+import { networkSettings, type Settings } from "../lockers/settings";
 import { autoCreateShipment } from "../alsendo/shipments.server";
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
   const { shop, payload, admin } = await authenticate.webhook(request);
   const order = payload as OrderPayload;
-  const choice = choiceFromShippingCodes((order.shipping_lines ?? []).map((l) => l.code));
-  if (!choice || !admin) return new Response();
+  if (!admin) return new Response();
+  const lines = order.shipping_lines ?? [];
+  const lockerTitled = lines.some((l) => mentionsLocker(l.title));
+  let choice = choiceFromShippingCodes(lines.map((l) => l.code));
+  if (!choice && !lockerTitled) return new Response();
 
   const { settings } = await getShopSettings(shop);
   const snapshot = snapshotFromWebhook(order);
   try {
+    // A custom "Paštomatas" line typed into a draft order: the buyer picks the
+    // locker on the thank-you page, if the country has any enabled locker type.
+    if (!choice) {
+      const country = order.shipping_address?.country_code ?? settings.countries[0];
+      if (!(await lockersOffered(settings, country))) return new Response();
+      choice = choiceFromShippingLine(await fetchShippingLine(admin, snapshot.id));
+      if (!choice) return new Response();
+    }
     if (choice.kind === "network") {
       await markLockerPending(admin, snapshot, choice.network, settings);
       return new Response();
@@ -35,3 +47,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
   }
   return new Response();
 };
+
+async function lockersOffered(settings: Settings, country: string) {
+  return (await networksInCountry(country)).some((n) => networkSettings(settings, n).enabled);
+}

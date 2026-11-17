@@ -38,3 +38,14 @@ export async function markLockerPending(admin: Admin, order: OrderSnapshot, netw
     "tagsAdd",
   );
 }
+
+/** The order's shipping line from the Admin API; the webhook payload doesn't say whether a line is custom. */
+export async function fetchShippingLine(admin: Admin, id: string) {
+  const res = await admin.graphql(
+    `#graphql
+    query OrderShippingLine($id: ID!) { order(id: $id) { shippingLine { code title custom } } }`,
+    { variables: { id } },
+  );
+  const body = await res.json();
+  return (body.data?.order?.shippingLine ?? null) as { code: string | null; title: string; custom: boolean } | null;
+}

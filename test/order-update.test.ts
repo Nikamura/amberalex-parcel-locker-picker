@@ -7,6 +7,7 @@ import {
   buildPendingOrderInput,
   choiceFromShippingCodes,
   choiceFromShippingLine,
+  mentionsLocker,
   snapshotFromWebhook,
 } from "../app/lockers/order-update";
 import { defaultSettings } from "../app/lockers/settings";
@@ -37,6 +38,9 @@ describe("shipping line choice", () => {
     expect(choiceFromShippingLine({ code: "x", title: "Siuntimas į pastomata", custom: true })).toEqual(any);
     expect(choiceFromShippingLine({ code: "Siuntimas", title: "Siuntimas", custom: true })).toBeNull();
     expect(choiceFromShippingLine({ code: "x", title: "Paštomatas", custom: false })).toBeNull();
+    expect(mentionsLocker("Siuntimas į paštomatą")).toBe(true);
+    expect(mentionsLocker("Kurjeris")).toBe(false);
+    expect(mentionsLocker(null)).toBe(false);
     expect(choiceFromShippingLine({ code: "PLP1N:omniva", custom: false })).toEqual({ kind: "network", network: "omniva" });
     expect(choiceFromShippingLine({ code: "Standard", custom: false })).toBeNull();
     expect(choiceFromShippingLine(null)).toBeNull();
