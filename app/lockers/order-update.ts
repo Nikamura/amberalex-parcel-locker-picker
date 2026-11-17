@@ -36,14 +36,20 @@ export function choiceFromShippingCodes(codes: Array<string | null | undefined>)
   return null;
 }
 
+const LOCKER_TITLE = /pa[šs]tomat/iu;
+
 /**
  * The buyer's choice from an order's shipping line. A custom line (typed into a
- * draft order) carries no rate code, so it counts as "any locker type, chosen
- * after payment".
+ * draft order) carries no rate code; if its title mentions a parcel locker
+ * ("Paštomatas"), it counts as "any locker type, chosen after payment".
  */
-export function choiceFromShippingLine(line: { code?: string | null; custom?: boolean | null } | null | undefined): ServiceChoice | null {
+export function choiceFromShippingLine(
+  line: { code?: string | null; title?: string | null; custom?: boolean | null } | null | undefined,
+): ServiceChoice | null {
   if (!line) return null;
-  return decodeServiceCode(line.code) ?? (line.custom ? { kind: "network", network: ANY_NETWORK } : null);
+  const decoded = decodeServiceCode(line.code);
+  if (decoded) return decoded;
+  return line.custom && LOCKER_TITLE.test(line.title ?? "") ? { kind: "network", network: ANY_NETWORK } : null;
 }
 
 function attributesWith(order: OrderSnapshot, extra: Array<{ name: string; value: string }>) {

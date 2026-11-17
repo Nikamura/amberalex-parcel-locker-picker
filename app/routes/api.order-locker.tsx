@@ -23,7 +23,7 @@ const ORDER_QUERY = `#graphql
       createdAt
       cancelledAt
       displayFulfillmentStatus
-      shippingLine { code custom }
+      shippingLine { code title custom }
       shippingAddress { firstName lastName phone zip countryCodeV2 }
       customAttributes { key value }
     }
@@ -35,7 +35,7 @@ interface AdminOrder {
   createdAt: string;
   cancelledAt: string | null;
   displayFulfillmentStatus: string;
-  shippingLine: { code: string | null; custom: boolean } | null;
+  shippingLine: { code: string | null; title: string; custom: boolean } | null;
   shippingAddress: { firstName: string | null; lastName: string | null; phone: string | null; zip: string | null; countryCodeV2: string } | null;
   customAttributes: Array<{ key: string; value: string | null }>;
 }

@@ -30,8 +30,13 @@ describe("shipping line choice", () => {
     expect(choiceFromShippingCodes(["Standard"])).toBeNull();
   });
 
-  it("treats a custom shipping line as any locker type, chosen after payment", () => {
-    expect(choiceFromShippingLine({ code: "Siuntimas", custom: true })).toEqual({ kind: "network", network: "any" });
+  it("treats a custom shipping line titled as a locker as any locker type, chosen after payment", () => {
+    const any = { kind: "network", network: "any" };
+    expect(choiceFromShippingLine({ code: "x", title: "Paštomatas", custom: true })).toEqual(any);
+    expect(choiceFromShippingLine({ code: "x", title: "PAŠTOMATAS", custom: true })).toEqual(any);
+    expect(choiceFromShippingLine({ code: "x", title: "Siuntimas į pastomata", custom: true })).toEqual(any);
+    expect(choiceFromShippingLine({ code: "Siuntimas", title: "Siuntimas", custom: true })).toBeNull();
+    expect(choiceFromShippingLine({ code: "x", title: "Paštomatas", custom: false })).toBeNull();
     expect(choiceFromShippingLine({ code: "PLP1N:omniva", custom: false })).toEqual({ kind: "network", network: "omniva" });
     expect(choiceFromShippingLine({ code: "Standard", custom: false })).toBeNull();
     expect(choiceFromShippingLine(null)).toBeNull();
